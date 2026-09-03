@@ -7,7 +7,6 @@ import { useLyrics } from '@/features/music/useLyrics'
 import { useMusic } from '@/features/music/MusicContext'
 import { MusicControls } from '@/features/music/MusicControls'
 import type { CoverPalette } from '@/features/music/useCoverPalette'
-import { useAudioAnalyser } from '@/features/music/useAudioAnalyser'
 import { Vinyl } from '@/features/music/Vinyl'
 import { cn } from '@/lib/utils'
 
@@ -59,7 +58,6 @@ export function NowPlaying({
     error,
     volume,
     setVolume,
-    analyserSource,
     singalong,
   } = useMusic()
 
@@ -84,11 +82,6 @@ export function NowPlaying({
   useEffect(() => {
     if (available === false) setShowLyrics(false)
   }, [available])
-
-  const { read } = useAudioAnalyser({
-    source: analyserSource,
-    playing: snapshot?.playing ?? false,
-  })
 
   if (!track || !snapshot) return null
 
@@ -220,9 +213,8 @@ export function NowPlaying({
         <Vinyl
           artwork={track.artwork}
           playing={snapshot.playing}
-          read={read}
           accent={palette?.base ?? 'var(--color-signal)'}
-          className="w-[min(78vw,min(30rem,46vh))]"
+          className="w-[min(82vw,min(34rem,52vh))]"
         />
 
         <div className="w-full max-w-2xl text-center">
@@ -239,7 +231,7 @@ export function NowPlaying({
           </CoverHeading>
 
           {(track.artist ?? track.album) && (
-            <p className="mt-2.5 truncate text-[0.95rem] text-mist">
+            <p className="mt-2.5 truncate text-[1rem] font-medium text-[#ffb3bd] [text-shadow:0_2px_10px_rgba(0,0,0,0.5)]">
               {[track.artist, track.album].filter(Boolean).join(' · ')}
             </p>
           )}
