@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Heart, MessagesSquare, Mic, Quote } from 'lucide-react'
 
 import { CoverHeading } from '@/features/music/CoverHeading'
@@ -62,6 +62,30 @@ export function NowPlaying({
   } = useMusic()
 
   const track = snapshot?.track ?? null
+
+  /*
+   * Turning the record to scrub.
+   *
+   * The base is where the playhead was when the grab began; the disc hands back
+   * how many seconds it has been turned since, and the target is the two added.
+   * Seeks are thrown at the room while turning — throttled, because it drives
+   * everyone's playhead and a seek per frame would be a storm — and one final
+   * seek lands on release so the room ends exactly where the finger left it.
+   */
+  const positionRef = useRef(position)
+  positionRef.current = position
+  const durationRef = useRef(duration)
+  durationRef.current = duration
+  const scrubBase = useRef(0)
+  const lastScrubSeek = useRef(0)
+
+  const seekTo = (seconds: number) =>
+    send('music:control', { action: 'seek', position: seconds })
+
+  const scrubTarget = (deltaSeconds: number) => {
+    const max = durationRef.current > 0 ? durationRef.current : Number.MAX_SAFE_INTEGER
+    return Math.min(Math.max(scrubBase.current + deltaSeconds, 0), max)
+  }
 
   /*
    * Local, not shared. Whether the words are showing is a way of looking at
@@ -215,6 +239,20 @@ export function NowPlaying({
           playing={snapshot.playing}
           accent={palette?.base ?? 'var(--color-signal)'}
           className="w-[min(82vw,min(34rem,52vh))]"
+          scrubbable={duration > 0}
+          onScrubStart={() => {
+            scrubBase.current = positionRef.current
+          }}
+          onScrub={(deltaSeconds) => {
+            const now = performance.now()
+            if (now - lastScrubSeek.current < 120) return
+            lastScrubSeek.current = now
+            seekTo(scrubTarget(deltaSeconds))
+          }}
+          onScrubEnd={(deltaSeconds) => {
+            lastScrubSeek.current = 0
+            seekTo(scrubTarget(deltaSeconds))
+          }}
         />
 
         <div className="w-full max-w-2xl text-center">

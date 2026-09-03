@@ -120,6 +120,12 @@ export function MusicProvider({
 
     if (!snapshot.playing) {
       handle.pause()
+      /* Move the paused frame to wherever the room now says it is. Without
+         this, scrubbing the record (or nudging the bar) while paused updates
+         everyone's shared position but leaves this player painting the old
+         one — the playhead appears stuck. Seeking a paused player only repaints
+         the frame, so it is safe to do on every seek. */
+      handle.seek(snapshot.position)
       setNeedsGesture(false)
       return
     }
