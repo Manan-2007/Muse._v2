@@ -3,19 +3,15 @@ import { useSearchParams } from 'react-router-dom'
 
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { AnimatePresence, motion } from 'framer-motion'
-import { DoorOpen, LogOut, MessagesSquare, Plus, Settings2, Users } from 'lucide-react'
+import { DoorOpen, LogOut, MessagesSquare, Plus, Users } from 'lucide-react'
 
 import { useAuth } from '@/features/auth/AuthContext'
 import { ACTIVITIES, type ActivityId } from '@/features/dashboard/hub/activities'
-import { CharacterParty, type HubMember } from '@/features/dashboard/hub/CharacterParty'
-import { Fireflies } from '@/features/dashboard/hub/Fireflies'
 import { HubDrawer } from '@/features/dashboard/hub/HubDrawer'
 import { HubRail, type RailItem } from '@/features/dashboard/hub/HubRail'
-import { HubSettings } from '@/features/dashboard/hub/HubSettings'
+import { MuseBackdrop } from '@/features/dashboard/hub/MuseBackdrop'
 import { RoomChip } from '@/features/dashboard/hub/RoomChip'
 import { RoomList } from '@/features/dashboard/hub/RoomList'
-import { SceneBackdrop } from '@/features/dashboard/hub/SceneBackdrop'
-import { groundFor, usePreferences } from '@/features/dashboard/hub/usePreferences'
 import { VoiceButton } from '@/features/dashboard/hub/VoiceButton'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { StageFailed } from '@/features/dashboard/hub/StageFailed'
@@ -36,16 +32,10 @@ import { usePresence, type Present } from '@/features/rooms/usePresence'
 import { usePresenceWatch } from '@/features/rooms/usePresenceWatch'
 import { useRooms } from '@/features/rooms/useRooms'
 import { useEntrance } from '@/features/transition/EntranceContext'
-import { usePointerTilt } from '@/hooks/usePointerTilt'
-import { characterFor, hasRoster } from '@/lib/characters'
-import { findScene, hasScenes } from '@/lib/scenes'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
-/** How many people stand in the scene before the rest are only a count. */
-const MAX_ON_STAGE = 5
-
-type Panel = 'rooms' | 'create' | 'settings'
+type Panel = 'rooms' | 'create'
 
 /**
  * The hub.
@@ -61,8 +51,6 @@ export function DashboardPage() {
   const { user } = useAuth()
   const { phase } = useEntrance()
   const { rooms, loading, error, create, join, setOnline } = useRooms()
-  const { preferences, update } = usePreferences(user?.id)
-  const tilt = usePointerTilt()
 
   /*
    * Which room you're standing in, and what you're doing, live in the URL.
@@ -261,11 +249,7 @@ export function DashboardPage() {
     [setOnline],
   )
 
-  /* Resolved, not the raw preference — with nothing chosen the hub derives a
-     character from your user id, and that is what others must be told. */
-  const myCharacter = user ? characterFor(user.id, preferences.characterId)?.id : undefined
-
-  usePresence(presenceRooms, handlePresence, myCharacter)
+  usePresence(presenceRooms, handlePresence, undefined)
 
   /*
    * Every room you belong to, watched read-only, so the list is right before
@@ -306,43 +290,19 @@ export function DashboardPage() {
     if (activeRoomId && !loading && !activeRoom) setActiveRoomId(null)
   }, [activeRoomId, activeRoom, loading, setActiveRoomId])
 
-  const scene = findScene(preferences.sceneId)
-
-  const party = useMemo<HubMember[]>(() => {
-    if (!user) return []
-
-    const you: HubMember = {
-      id: user.id,
-      name: user.name,
-      status: 'here',
-      owner: activeRoom?.ownerId === user.id,
-      you: true,
-      character: characterFor(user.id, preferences.characterId),
-    }
-
-    if (!activeRoom) return [you]
-
-    /* Ownership still comes from the room — presence knows who is here, not
-       what they are to the room. */
-    const others = (roster[activeRoom.id] ?? [])
-      .filter((person) => person.userId !== user.id)
-      .slice(0, MAX_ON_STAGE - 1)
-      .map<HubMember>((person) => ({
-        id: person.userId,
-        name: person.name,
-        status: 'here',
-        owner: activeRoom.ownerId === person.userId,
-        you: false,
-        /* Their choice, carried on presence. Falls back to the id-derived one
-           for anyone on an older client that isn't announcing it. */
-        character: characterFor(person.userId, person.characterId),
-      }))
-
-    /* You stand in the middle of your own party rather than at one end. */
-    const line = [...others]
-    line.splice(Math.floor(line.length / 2), 0, you)
-    return line
-  }, [user, activeRoom, roster, preferences.characterId])
+  /*
+   * Who is in the room right now, as a small set of faces — no 3D characters,
+   * just initials on a chip with a live dot. You are always first.
+   */
+  const present = useMemo(() => {
+    if (!user || !activeRoom) return []
+    const here = roster[activeRoom.id] ?? []
+    const others = here.filter((person) => person.userId !== user.id)
+    return [
+      { id: user.id, name: user.name, you: true },
+      ...others.map((person) => ({ id: person.userId, name: person.name, you: false })),
+    ]
+  }, [user, activeRoom, roster])
 
   /* Watching is a room event, not a private toggle — the hub has to know a
      session is live so it can badge the button and offer the way in. */
@@ -410,13 +370,6 @@ export function DashboardPage() {
       icon: Users,
       onClick: () => setPanel('rooms'),
     },
-    {
-      key: 'settings',
-      label: 'Settings',
-      hint: 'Backdrop and character',
-      icon: Settings2,
-      onClick: () => setPanel('settings'),
-    },
     ...(activeRoom
       ? [
           {
@@ -435,7 +388,6 @@ export function DashboardPage() {
   /* While the corridor plays the hub stays mounted but invisible, so the room
      fetch is already in flight by the time it hands off. */
   const revealed = phase !== 'tunnel'
-  const needsAssets = !hasScenes || !hasRoster
 
   return (
     <MusicProvider
@@ -455,78 +407,90 @@ export function DashboardPage() {
       animate={{ opacity: revealed ? 1 : 0 }}
       transition={{ duration: 0.7, ease: EASE }}
     >
-      <SceneBackdrop scene={scene} tilt={tilt} />
-      <Fireflies className="pointer-events-none absolute inset-0 size-full" />
+      <MuseBackdrop />
 
       {revealed && (
         <>
-          <CharacterParty
-            members={party}
-            tilt={tilt}
-            ground={groundFor(preferences, scene?.id)}
-            insetRight={inset}
-            /* Every activity opens a stage that covers the hub completely, so
-               the party behind it has nothing to draw for. */
-            covered={activity !== null}
-          />
+          {/*
+            The centre of the hub. No 3D world and nobody standing in it —
+            Muse. is music-first, so this is the app's own identity when you
+            have not walked into a room, and the room's name and who is in it
+            once you have. Hidden while a stage is open, which covers it anyway.
+          */}
+          {!activity && (
+            <div className="pointer-events-none absolute inset-0 z-10 mx-auto flex max-w-[min(92vw,34rem)] flex-col items-center justify-center px-6 text-center">
+              {activeRoom ? (
+                <>
+                  <span className="text-[0.7rem] uppercase tracking-[0.28em] text-dusk">
+                    In the room
+                  </span>
+                  <h1 className="mt-3 text-balance font-display text-[clamp(1.5rem,4vw,3.25rem)] font-semibold tracking-[-0.02em] text-chalk">
+                    {activeRoom.name}
+                  </h1>
+
+                  {present.length > 0 && (
+                    <div className="mt-5 flex items-center gap-2.5">
+                      <span className="flex -space-x-2">
+                        {present.slice(0, 5).map((one) => (
+                          <span
+                            key={one.id}
+                            title={one.you ? `${one.name} (you)` : one.name}
+                            className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-signal to-signal-deep text-[0.7rem] font-semibold text-white ring-2 ring-void"
+                          >
+                            {one.name.slice(0, 1).toUpperCase()}
+                          </span>
+                        ))}
+                        {present.length > 5 && (
+                          <span className="grid size-8 place-items-center rounded-full bg-white/10 text-[0.62rem] font-semibold text-chalk ring-2 ring-void">
+                            +{present.length - 5}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-[0.82rem] text-mist">
+                        {present.length === 1 ? 'just you, so far' : `${present.length} here`}
+                      </span>
+                    </div>
+                  )}
+
+                  <p className="mt-6 max-w-sm text-[0.9rem] leading-relaxed text-mist">
+                    Choose <span className="text-chalk">Listen</span> to put a record on together.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h1 className="font-display text-[clamp(2.6rem,8vw,5rem)] font-semibold tracking-[-0.03em] text-chalk">
+                    Muse<span className="text-signal">.</span>
+                  </h1>
+                  <p className="mt-4 max-w-sm text-[0.95rem] leading-relaxed text-mist">
+                    {user ? `Welcome back, ${user.name.split(' ')[0]}. ` : ''}Pick a room to start
+                    listening — or make a new one.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
 
           <HubRail side="left" items={leftItems} />
           <HubRail side="right" items={rightItems} insetRight={inset} />
 
-          {/*
-            Everything along the bottom of the room, in one column against the
-            left edge.
-            
-            It used to centre itself across the whole width while the music dock
-            pinned itself to the right, and the two had no idea about each
-            other — so the moment a track was on, the dock grew leftward into
-            the middle and sat on top of the room code. Anchored to opposite
-            edges they cannot reach each other at any width, which is a
-            property of the layout rather than a number that has to be kept
-            in step. The notice stacks above rather than beside, so it cannot
-            collide with the chip either.
-          */}
+          {/* The room chip and the voice toggle, anchored to the bottom-left
+              corner and kept clear of the music dock on the right. */}
           <div
             className="pointer-events-none absolute bottom-6 left-0 z-20 flex flex-col items-start gap-2.5 px-6 transition-[right] duration-500 ease-glass"
-            /*
-             * Stops short of both the panel and the dock's corner.
-             * 
-             * Capping its own width was not enough on its own: as the window
-             * narrows, the space between the two edges shrinks faster than any
-             * fixed cap, so the two zones still met somewhere around a
-             * thousand pixels. Ending the box where the dock's territory
-             * begins means the gap is held open by the layout at every width,
-             * and the chip inside truncates instead of running underneath.
-             */
             style={{ right: `calc(${inset}rem + min(23rem, 34%))` }}
           >
-            {(error || needsAssets) && (
+            {error && (
               <div className="hidden max-w-xs md:block">
-                {error ? (
-                  <p
-                    role="alert"
-                    className="glass-pill-ink rounded-card px-4 py-3 text-[0.78rem] leading-relaxed text-signal-bright"
-                  >
-                    {error}
-                  </p>
-                ) : (
-                  <p className="glass-pill-ink rounded-card px-4 py-3 text-[0.78rem] leading-relaxed text-mist">
-                    {!hasScenes && !hasRoster
-                      ? 'No backdrops or characters yet — Settings shows where to drop them.'
-                      : !hasScenes
-                        ? 'No backdrops yet — Settings shows where to drop them.'
-                        : 'No characters yet — Settings shows where to drop them.'}
-                  </p>
-                )}
+                <p
+                  role="alert"
+                  className="glass-pill-ink rounded-card px-4 py-3 text-[0.78rem] leading-relaxed text-signal-bright"
+                >
+                  {error}
+                </p>
               </div>
             )}
 
             {activeRoom && (
-              /* One line, never two. Wrapping made this cluster tall enough
-                 to reach up into the band the nameplates sit in, and two
-                 things that are each correctly placed still collide if they
-                 are allowed to grow into each other. The chip truncates
-                 instead, which is the one of the two that can afford to. */
               <div className="flex min-w-0 max-w-full flex-nowrap items-center gap-2.5">
                 <RoomChip room={activeRoom} />
                 <VoiceButton roomId={activeRoomId} />
@@ -709,22 +673,6 @@ export function DashboardPage() {
           </HubDrawer>
         )}
 
-        {panel === 'settings' && (
-          <HubDrawer
-            key="settings"
-            title="Settings"
-            subtitle="Yours, not the room's — everyone dresses their own hub."
-            onClose={() => setPanel(null)}
-          >
-            <HubSettings
-              preferences={preferences}
-              onChange={update}
-              activeCharacterId={
-                user ? characterFor(user.id, preferences.characterId)?.id : undefined
-              }
-            />
-          </HubDrawer>
-        )}
       </AnimatePresence>
     </motion.main>
     </MusicProvider>
