@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Huddle">
+  <defs><mask id="h">
+    <rect width="100" height="100" fill="#fff"/>
+    <circle cx="38" cy="32" r="8" fill="#000"/>
+    <circle cx="62" cy="32" r="8" fill="#000"/>
+    <rect x="38" y="28" width="24" height="8" rx="4" fill="#000"/>
+    <path fill="#000" d="M20 92V62c0-15 13-24 30-24s30 9 30 24v30h-7c0-14-2-22-5-28-3-7-9-11-18-11s-15 4-18 11c-3 6-5 14-5 28Z"/>
+    <path fill="#000" d="M10 92V72a20 20 0 0 1 20 20Z"/>
+    <path fill="#000" d="M90 92V72a20 20 0 0 0-20 20Z"/>
+  </mask></defs>
+  <rect width="100" height="100" rx="24" fill="#0a0a0d"/>
+  <path mask="url(#h)" fill="#fafafa" d="M10 92V46c0-19 13-32 29-32 6 0 9 4 11 9 2-5 5-9 11-9 16 0 29 13 29 32v46Z"/>
+</svg>

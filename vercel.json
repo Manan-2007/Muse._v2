@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "//": "Everything except built assets and /api falls through to the SPA. The assets exclusion: a catch-all answers a request for a hashed chunk that no longer exists with index.html at status 200, and a browser handed text/html for a module refuses to run it — Suspense never resolves and a pane simply never appears. Excluded, a stale chunk 404s honestly and the client can recognise it and reload. See src/lib/lazyChunk.ts. The /api exclusion is the same failure one layer up: this Express server does not run on Vercel at all, so /api/* has no legitimate answer here — only ever reached when a visitor's own API_BASE has resolved to same-origin (a private window, cleared storage, a device that never opened the one-time ?api= link). Rewritten to the SPA, that request got index.html back at 200 too, and every generator on the page failed at once with nothing to point at why. Excluded, it 404s, and src/lib/api.ts already turns a non-JSON response into a clear 'no API here' error instead of quietly returning null.",
+      "source": "/((?!assets/|api/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

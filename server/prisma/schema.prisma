@@ -1,0 +1,644 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  /// bcrypt hash — never the plaintext, and never returned by the API
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  ownedRooms   Room[]       @relation("RoomOwner")
+  memberships  Membership[]
+  queued       QueueItem[]
+  queuedTracks TrackItem[]
+  playlists    Playlist[]
+  likes        LikedTrack[]
+  messages     Message[]
+
+  subjects    Subject[]
+  resources   Resource[]
+  mcqSets     McqSet[]
+  mcqAttempts McqAttempt[]
+  notes       Note[]
+  explainers  Explainer[]
+  problems    CodingProblem[]
+  submissions CodingSubmission[]
+  assistant   AssistantMessage[]
+}
+
+model Room {
+  id         String   @id @default(cuid())
+  /// Short, URL-safe handle used in room links
+  slug       String   @unique
+  name       String
+  /// friends | couple | study | family | team — see ROOM_TYPES on the client
+  type       String
+  /// open | private.
+  ///
+  /// `open` is listed on Discover and anyone signed in may walk in. `private`
+  /// is not listed anywhere and the code is the only way in, which is the
+  /// same model as an invite link.
+  ///
+  /// Defaults to private, including for every room that already existed. The
+  /// safe direction for a default is the closed one: a room that should have
+  /// been listed and is not is a moment's confusion, where a room that should
+  /// have been shut and was listed to everybody is the actual harm.
+  visibility String   @default("private")
+  createdAt  DateTime @default(now())
+
+  ownerId   String
+  owner     User         @relation("RoomOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members   Membership[]
+  queue     QueueItem[]
+  tracks    TrackItem[]
+  playlists Playlist[]
+  likes     LikedTrack[]
+  messages  Message[]
+
+  subjects   Subject[]
+  resources  Resource[]
+  chunks     ResourceChunk[]
+  mcqSets    McqSet[]
+  notes      Note[]
+  explainers Explainer[]
+  problems   CodingProblem[]
+  assistant  AssistantMessage[]
+
+  @@index([ownerId])
+}
+
+/// A named running order, kept between sessions.
+///
+/// Belongs to a room rather than to the person who made it — the room is the
+/// unit everything else here is scoped to, and a playlist only one member
+/// could see would be a private feature inside a shared one. Authorship is
+/// recorded because the answer to "who made this" is part of what makes a
+/// shared library feel like a place rather than a folder.
+model Playlist {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  roomId      String
+  createdById String
+  room        Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdBy   User            @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  tracks      PlaylistTrack[]
+
+  @@index([roomId, createdAt])
+}
+
+/// One song's place in one playlist.
+///
+/// The song is stored here rather than pointed at, because the things being
+/// collected are not rows in this database — they are YouTube ids and uploaded
+/// files. A reference table would need somewhere to point.
+model PlaylistTrack {
+  id        String   @id @default(cuid())
+  source    String
+  ref       String
+  title     String
+  artist    String?
+  album     String?
+  artwork   String?
+  duration  Int?
+  position  Int
+  createdAt DateTime @default(now())
+
+  playlistId String
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+
+  @@index([playlistId, position])
+}
+
+/// One person's saved song, inside one room.
+///
+/// Per person, unlike everything else on this page: what the room is playing
+/// is a shared decision, but what you personally keep is not. Scoped to the
+/// room as well so a library stays with the people it was built with.
+model LikedTrack {
+  id        String   @id @default(cuid())
+  source    String
+  ref       String
+  title     String
+  artist    String?
+  album     String?
+  artwork   String?
+  duration  Int?
+  createdAt DateTime @default(now())
+
+  roomId String
+  userId String
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// One like per song per person — the toggle depends on it.
+  @@unique([userId, roomId, source, ref])
+  @@index([roomId, userId, createdAt])
+}
+
+/// The room's listening queue.
+///
+/// Its own table rather than a `kind` column on `QueueItem`: a track carries
+/// artist and album art that a video has no use for, and the two queues are
+/// read on different screens at different times. One table would mean every
+/// music query dragging video rows through a filter, and every video row
+/// carrying three columns that are always null.
+model TrackItem {
+  id        String   @id @default(cuid())
+  /// file | youtube — see MUSIC_SOURCES on the server
+  source    String
+  /// A YouTube video id, or a URL to the audio itself.
+  ref       String
+  title     String
+  artist    String?
+  album     String?
+  /// Cover art. The page's whole palette is derived from this when present.
+  artwork   String?
+  /// Seconds. Null until something has actually played it.
+  duration  Int?
+  position  Int
+  createdAt DateTime @default(now())
+
+  roomId    String
+  addedById String
+  room      Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  addedBy   User   @relation(fields: [addedById], references: [id], onDelete: Cascade)
+
+  @@index([roomId, position])
+}
+
+/// Room chat. Persisted, because a conversation people expect to scroll back
+/// through is not the same kind of state as "who is online right now".
+model Message {
+  id        String   @id @default(cuid())
+  body      String
+  createdAt DateTime @default(now())
+
+  roomId   String
+  authorId String
+  room     Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
+}
+
+/// The room's watch queue. Persisted, unlike playback position — what you lined
+/// up should survive everyone closing the tab; where you were up to should not.
+model QueueItem {
+  id        String   @id @default(cuid())
+  /// youtube | file | external — see WATCH_SOURCES on the client
+  source    String
+  /// A YouTube video id, a direct media URL, or a free-text title for external.
+  ref       String
+  title     String
+  /// Seconds. Null when unknown, which external titles always are.
+  duration  Int?
+  thumbnail String?
+  /// Sort key within the room. Rewritten on reorder rather than fractionally
+  /// interpolated — a queue is short enough that the simpler thing wins.
+  position  Int
+  createdAt DateTime @default(now())
+
+  roomId    String
+  addedById String
+  room      Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  addedBy   User   @relation(fields: [addedById], references: [id], onDelete: Cascade)
+
+  @@index([roomId, position])
+}
+
+model Membership {
+  id       String   @id @default(cuid())
+  role     String   @default("member")
+  joinedAt DateTime @default(now())
+  /// Touched whenever the member is seen in the room, so the dashboard can
+  /// sort by "last active" without a separate events table.
+  lastSeen DateTime @default(now())
+
+  userId String
+  roomId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+  @@index([roomId])
+}
+
+// ─── Study ────────────────────────────────────────────────────────────────────
+
+/// A subject the room is studying — one course, one paper, one exam.
+///
+/// Everything else in Study hangs off this rather than off the room directly.
+/// A room studying three subjects at once is the normal case, not the edge
+/// one, and a resource shelf that mixes a chemistry syllabus into a compiler
+/// design question set is worse than useless: retrieval would pull the wrong
+/// document and ground an answer in it confidently. Scoping the search space
+/// to one subject is what keeps that from happening.
+model Subject {
+  id        String   @id @default(cuid())
+  name      String
+  /// Optional course code — "25CSE0203" and the like, since that is how a
+  /// syllabus names itself and how a student recognises it.
+  code      String?
+  /// Short line under the name in the picker. Written by whoever made it, or
+  /// filled in from a syllabus when one is read.
+  blurb     String?
+  createdAt DateTime @default(now())
+
+  roomId      String
+  createdById String
+  room        Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  syllabus   Syllabus?
+  resources  Resource[]
+  mcqSets    McqSet[]
+  notes      Note[]
+  explainers Explainer[]
+  problems   CodingProblem[]
+
+  @@index([roomId, createdAt])
+}
+
+/// What a subject actually covers, read out of an uploaded course handout.
+///
+/// Its own model rather than columns on `Subject` because it is derived, not
+/// authored: it is the model's reading of a document, it can be regenerated
+/// when a better handout is uploaded, and it should be obvious in the schema
+/// that nobody typed this by hand. One per subject — a second handout
+/// replaces the first rather than accumulating.
+model Syllabus {
+  id        String   @id @default(cuid())
+  /// Course title as the handout states it.
+  title     String
+  /// JSON array of units, each `{ name, weightage, topics: string[] }` — the
+  /// shape a course handout actually has. Kept as JSON rather than two more
+  /// tables: nothing ever queries a single topic across subjects, and every
+  /// read wants the whole outline at once.
+  units     String
+  /// JSON array of stated learning outcomes, when the handout lists them.
+  outcomes  String
+  /// The cleaned text the units were read out of, kept so a regeneration has
+  /// the source to work from without re-reading the file.
+  source    String
+  createdAt DateTime @default(now())
+
+  subjectId  String  @unique
+  resourceId String?
+  subject    Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+}
+
+/// A document the room has uploaded to study from.
+///
+/// The file lives on disk under uploads/study/, not in SQLite — the same
+/// reasoning as an uploaded film: a multi-megabyte blob in a column makes
+/// every unrelated query drag it around. This row is the pointer, plus the
+/// state of turning it into something searchable.
+model Resource {
+  id         String   @id @default(cuid())
+  title      String
+  /// Filename on disk, relative to the study upload directory.
+  file       String
+  mimeType   String
+  bytes      Int
+  /// pending | processing | ready | failed — see RESOURCE_STATUS.
+  ///
+  /// Chunking and embedding happen after the upload has already responded: a
+  /// syllabus is small but a textbook is not, and an Azure round trip per
+  /// batch inside the request is a request that times out.
+  status     String   @default("pending")
+  /// Why it failed, so the room can be told the reason rather than just the
+  /// fact. A scanned PDF with no text layer is a different problem from a
+  /// corrupt file, and only one of them is worth retrying.
+  error      String?
+  /// How many chunks came out of it. Zero on a ready resource means the file
+  /// parsed but said nothing — a scan, almost always.
+  chunkCount Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  roomId    String
+  subjectId String
+  addedById String
+  room      Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  subject   Subject         @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  addedBy   User            @relation(fields: [addedById], references: [id], onDelete: Cascade)
+  chunks    ResourceChunk[]
+
+  @@index([subjectId, createdAt])
+  @@index([roomId])
+}
+
+/// One retrievable slice of a resource, with its embedding.
+///
+/// Chunked rather than embedding whole documents: an embedding is a single
+/// point standing in for everything fed to it, so a whole textbook flattened
+/// into one vector answers every question with the same book-shaped blur. A
+/// few hundred words is small enough that the vector means something and
+/// large enough that what comes back still reads as a passage.
+///
+/// `embedding` is a JSON array of floats in a text column rather than a
+/// native vector type. A room's shelf is tens of documents; scanning a few
+/// thousand rows and scoring them in JavaScript takes under a millisecond,
+/// and loading a native SQLite extension to beat that would be a new thing
+/// to install on every machine in exchange for nothing anyone could feel.
+model ResourceChunk {
+  id        String   @id @default(cuid())
+  /// Position within the document, for ordering and for citing a location.
+  index     Int
+  /// Page number when the extractor knew it — a citation people recognise.
+  page      Int?
+  text      String
+  embedding String
+  createdAt DateTime @default(now())
+
+  roomId     String
+  subjectId  String
+  resourceId String
+  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@index([subjectId])
+  @@index([resourceId, index])
+  @@index([roomId])
+}
+
+/// One generated set of multiple-choice questions.
+///
+/// Grouped as a set rather than kept as loose questions: a room asks for
+/// "ten on unit three" as one act and gets back one thing to attempt, review
+/// and retry. Ten unrelated rows would have no notion of the batch anyone
+/// actually asked for.
+model McqSet {
+  id         String   @id @default(cuid())
+  title      String
+  topic      String
+  /// easy | medium | hard | mixed.
+  difficulty String   @default("mixed")
+  /// True when resource text was fed to the generator. Shown in the UI, so a
+  /// set written from the model's own knowledge never silently passes as one
+  /// drawn from the room's documents.
+  grounded   Boolean  @default(false)
+  /// Which resources it drew on, as a JSON array of titles. Cheaper than a
+  /// join table for something only ever read back whole, as one line of
+  /// provenance under the set's name.
+  sources    String   @default("[]")
+  createdAt  DateTime @default(now())
+
+  roomId      String
+  subjectId   String
+  createdById String
+  room        Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  subject     Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdBy   User    @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  questions McqQuestion[]
+  attempts  McqAttempt[]
+
+  @@index([subjectId, createdAt])
+  @@index([roomId])
+}
+
+/// One question, with its options.
+///
+/// Options are a JSON array on the question rather than a child table. They
+/// have no life of their own — nothing queries "every option ever written",
+/// nothing edits one in isolation, and every read wants the whole question
+/// anyway. A table would buy a join and nothing else.
+model McqQuestion {
+  id           String @id @default(cuid())
+  prompt       String
+  options      String
+  correctIndex Int
+  explanation  String
+  position     Int
+
+  setId String
+  set   McqSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  answers McqAnswer[]
+
+  @@index([setId, position])
+}
+
+/// One person's run at a set.
+///
+/// Per person, not per room: a quiz you are being walked through at somebody
+/// else's pace is not a quiz, it is a screen share. The room shares the
+/// questions; how you did on them is yours.
+model McqAttempt {
+  id          String    @id @default(cuid())
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  score       Int?
+  total       Int       @default(0)
+
+  setId  String
+  userId String
+  set    McqSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  answers McqAnswer[]
+
+  @@index([setId, userId])
+  @@index([userId, startedAt])
+}
+
+model McqAnswer {
+  id          String  @id @default(cuid())
+  chosenIndex Int
+  correct     Boolean
+
+  attemptId  String
+  questionId String
+  attempt    McqAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question   McqQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId])
+}
+
+/// A generated set of notes.
+///
+/// Stored as the markdown the model wrote, diagrams included as fenced
+/// mermaid blocks, rather than as rendered HTML. Keeping the source is what
+/// lets "explain this bit" hand the model back its own exact words, and what
+/// makes the rendering the client's business rather than the database's.
+model Note {
+  id        String   @id @default(cuid())
+  title     String
+  topic     String
+  content   String
+  grounded  Boolean  @default(false)
+  sources   String   @default("[]")
+  createdAt DateTime @default(now())
+
+  roomId      String
+  subjectId   String
+  createdById String
+  room        Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  subject     Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdBy   User    @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([subjectId, createdAt])
+  @@index([roomId])
+}
+
+/// A narrated, animated lesson on one topic.
+///
+/// The beats are the whole thing: a JSON array of `{ say, show, audio }`,
+/// where `say` is what is spoken, `show` is a visual drawn from a fixed
+/// vocabulary the player knows how to render, and `audio` is the narration
+/// clip generated for that beat. Stored as JSON rather than as rows because
+/// nothing ever queries one beat — every read wants the whole lesson in
+/// order, which is exactly how it is played.
+///
+/// No video file is produced. The "video" is the player animating these
+/// beats against their audio, which is what keeps the diagrams correct: they
+/// are drawn from data by the same renderers the notes use, not generated as
+/// pixels by a model that cannot spell.
+model Explainer {
+  id       String  @id @default(cuid())
+  title    String
+  topic    String
+  /// How the student asked to be taught, in their words. Kept so the request
+  /// is visible on the lesson it produced, and so a regeneration can honour
+  /// the same one.
+  style    String  @default("")
+  /// The Azure neural voice the narration was generated with. Recorded
+  /// because the audio is baked — changing this later means re-narrating.
+  voice    String
+  /// JSON array of beats, including each one's audio path and duration.
+  beats    String  @default("[]")
+  /// Whole-lesson runtime in seconds, summed from the narration clips.
+  duration Float   @default(0)
+  /// True when the room's own documents fed the script — same honesty rule
+  /// the notes and question generators follow.
+  grounded Boolean @default(false)
+  sources  String  @default("[]")
+  /// JSON array of resource ids the student narrowed this to, empty for the
+  /// whole shelf. Stored rather than used and forgotten, because a retry has
+  /// to draw on the same documents or it is not a retry of the same lesson.
+  resources String @default("[]")
+
+  /// pending | scripting | narrating | ready | failed
+  status    String   @default("pending")
+  error     String?
+  createdAt DateTime @default(now())
+
+  roomId      String
+  subjectId   String
+  createdById String
+  room        Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  subject     Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdBy   User    @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([subjectId, createdAt])
+  @@index([roomId])
+}
+
+/// A generated coding question.
+model CodingProblem {
+  id          String   @id @default(cuid())
+  title       String
+  /// Markdown — the statement, constraints, and worked examples.
+  description String
+  /// easy | medium | hard.
+  difficulty  String
+  /// JSON array of language ids the starter code is offered in.
+  languages   String
+  /// JSON object of language id → starter source.
+  starters    String
+  createdAt   DateTime @default(now())
+
+  roomId      String
+  subjectId   String
+  createdById String
+  room        Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  subject     Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdBy   User    @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  testCases   CodingTestCase[]
+  submissions CodingSubmission[]
+
+  @@index([subjectId, createdAt])
+  @@index([roomId])
+}
+
+/// One test case, shown or hidden.
+///
+/// `hidden` is filtered server-side before a problem is ever serialised. The
+/// entire point of a hidden case is that it does not reach a browser, and a
+/// client-side filter is a filter an inspector can walk straight past.
+model CodingTestCase {
+  id       String  @id @default(cuid())
+  input    String
+  expected String
+  hidden   Boolean @default(false)
+  position Int
+
+  problemId String
+  problem   CodingProblem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@index([problemId, position])
+}
+
+/// One run of somebody's code against a problem.
+model CodingSubmission {
+  id          String   @id @default(cuid())
+  language    String
+  code        String
+  /// pending | passed | failed | error — see the judge service.
+  status      String   @default("pending")
+  passedCount Int      @default(0)
+  totalCount  Int      @default(0)
+  /// The first failing case, trimmed — enough to show expected against got,
+  /// without keeping every case's full output for every submission forever.
+  detail      String?
+  createdAt   DateTime @default(now())
+
+  problemId String
+  userId    String
+  problem   CodingProblem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([problemId, userId, createdAt])
+  @@index([userId, createdAt])
+}
+
+/// One turn of somebody's conversation with the study assistant.
+///
+/// Scoped to the person as well as the room, unlike `Message`. This is not
+/// something the room reads together — it is the assistant helping whoever is
+/// looking at their own screen, and two people at the same desk can be asking
+/// about completely different things at the same moment.
+model AssistantMessage {
+  id        String   @id @default(cuid())
+  /// user | assistant.
+  role      String
+  content   String
+  /// JSON array of the tools this turn called, or null. Inline for the same
+  /// reason a question keeps its options inline: nothing reads a tool call
+  /// except as part of the turn it belongs to.
+  tools     String?
+  /// Whether resource text was actually retrieved for this turn. The badge in
+  /// the UI reports this rather than guessing — it is the one part of
+  /// "grounded" the server can observe rather than infer.
+  grounded  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  roomId    String
+  userId    String
+  subjectId String?
+  room      Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, userId, createdAt])
+}

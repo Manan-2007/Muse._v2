@@ -1,0 +1,1414 @@
+@import 'tailwindcss';
+
+/* ═══════════════════════════════════════════════════════════════
+   SyncRoom design tokens
+   Defined once here so the whole app (landing page today, room
+   shell later) pulls from the same palette, type scale and motion.
+   ═══════════════════════════════════════════════════════════════ */
+@theme {
+  /* ── Type ─────────────────────────────────────────────────── */
+  --font-display: 'Archivo', 'Helvetica Neue', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+
+  /* ── The two anchors ──────────────────────────────────────────
+     Used raw where they earn it: navy carries the dark, red is the
+     signal. Everything below is derived from these two.           */
+  --color-navy: #000080;
+  --color-red: #ff0000;
+
+  /* ── Surfaces: pure neutral dark, no colour cast ──────────────
+     Colour comes from the two ambient gradients and the red accent,
+     never from the surfaces themselves.                           */
+  --color-void: #000000;
+  --color-abyss: #070707;
+  --color-deep: #0d0d0f;
+  --color-surface: #141416;
+  --color-elevated: #1c1c1f;
+  --color-line: #2a2a2e;
+
+  /* ── Text: neutral greys ──────────────────────────────────── */
+  --color-chalk: #fafafa;
+  --color-mist: #a4a4ab;
+  --color-dusk: #6e6e77;
+
+  /* ── Signal ───────────────────────────────────────────────────
+     Red, reserved for live / synced state: presence dots, the
+     shared playhead, live cursors, hover + focus glow. Pure
+     #ff0000 only for lights and dots — `bright` for any text,
+     since pure red on navy fails contrast at small sizes.        */
+  --color-signal: #ff0000;
+  --color-signal-bright: #ff5a5a;
+  --color-signal-deep: #8f0000;
+
+  /* ── Canvas ───────────────────────────────────────────────────
+     The page sits on warm off-white now, with neon linework drifting
+     across it. Every panel, card and the navbar stay dark glass —
+     dark UI floating in bright space.                             */
+  --color-canvas: #f2efe9;
+  --color-canvas-deep: #e6e1d8;
+
+  /* Type that sits *on* the canvas rather than inside a dark panel. The
+     chalk/mist/dusk scale is for light-on-dark and is unreadable out here. */
+  --color-ink: #14141a;
+  --color-ink-soft: #4c4c58;
+  --color-ink-faint: #83838f;
+
+  /* Neon inks for the flow lines. Saturated, because glow only
+     reads as glow against dark — on off-white it has to be pigment. */
+  --color-neon-red: #ff1f3d;
+  --color-neon-blue: #2b3bff;
+  --color-neon-violet: #a01aff;
+  --color-neon-teal: #00c2b8;
+
+  /* ── Ambient light: red and navy only ─────────────────────────
+     A violet third light drags the whole page purple, so the third
+     blob is a deep crimson instead — red and navy stay dominant.  */
+  --color-glow-warm: #ff0000;
+  --color-glow-cool: #1b1bd6;
+  --color-glow-violet: #b00020;
+
+  /* ── Poster colour grades (CSS fallback only) ─────────────── */
+  --color-grade-blue: #060a34;
+  --color-grade-red: #35030a;
+  --color-grade-green: #08281b;
+  --color-grade-amber: #3a2408;
+  --color-grade-violet: #1c0838;
+  --color-grade-teal: #06222a;
+
+  /* ── Radii ────────────────────────────────────────────────── */
+  --radius-poster: 0.625rem;
+  --radius-card: 1.25rem;
+  --radius-panel: 1.75rem;
+
+  /* ── Easing ───────────────────────────────────────────────── */
+  --ease-glass: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-drift: cubic-bezier(0.45, 0, 0.55, 1);
+
+  /* ── Resting-state animation ──────────────────────────────── */
+  --animate-marquee: marquee var(--marquee-duration, 90s) linear infinite;
+  --animate-screen-drift: screen-drift 26s var(--ease-drift) infinite;
+  --animate-mesh-a: mesh-drift-a 34s linear infinite;
+  --animate-mesh-b: mesh-drift-b 52s linear infinite;
+  --animate-mesh-c: mesh-drift-c 74s linear infinite;
+  --animate-spin-slow: turn 26s linear infinite;
+  --animate-spin-slower: turn 48s linear infinite;
+  --animate-orbit: turn var(--orbit-duration, 14s) linear infinite;
+  --animate-signal-pulse: signal-pulse 2.6s var(--ease-drift) infinite;
+  --animate-disc-pulse: disc-pulse 4.5s var(--ease-drift) infinite;
+  --animate-glow-shift: glow-shift var(--glow-duration, 16s) var(--ease-drift) infinite;
+
+  @keyframes marquee {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+
+  /*
+   * Ambient mesh drift. Each layer is a repeating radial-gradient tile on an
+   * oversized element, translated by exactly one tile — so the loop is
+   * genuinely seamless, and it runs on the compositor rather than repainting.
+   * Tiles share a 1 : 1.3 aspect, which fixes every layer to the same ~52°
+   * heading while their different sizes give them different speeds.
+   */
+  @keyframes mesh-drift-a {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(50vw, -65vw, 0);
+    }
+  }
+
+  @keyframes mesh-drift-b {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(76vw, -98.8vw, 0);
+    }
+  }
+
+  @keyframes mesh-drift-c {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(112vw, -145.6vw, 0);
+    }
+  }
+
+  /* Slow Ken Burns on device screens, so a still still reads as playing. */
+  @keyframes screen-drift {
+    0%,
+    100% {
+      transform: scale(1.06) translate3d(-1%, 0, 0);
+    }
+    50% {
+      transform: scale(1.14) translate3d(1.5%, -1.5%, 0);
+    }
+  }
+
+  @keyframes turn {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes signal-pulse {
+    0%,
+    100% {
+      opacity: 1;
+      box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-signal) 55%, transparent);
+    }
+    50% {
+      opacity: 0.72;
+      box-shadow: 0 0 0 7px color-mix(in oklab, var(--color-signal) 0%, transparent);
+    }
+  }
+
+  @keyframes disc-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.9;
+    }
+    50% {
+      transform: scale(1.055);
+      opacity: 1;
+    }
+  }
+
+  @keyframes glow-shift {
+    0%,
+    100% {
+      filter: blur(var(--glow-blur, 90px)) hue-rotate(0deg);
+      opacity: var(--glow-min, 0.5);
+    }
+    50% {
+      filter: blur(var(--glow-blur, 90px)) hue-rotate(var(--glow-hue, 22deg));
+      opacity: var(--glow-max, 0.85);
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Utilities
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Glass materials ──────────────────────────────────────────────
+   Three distinct families so the floating objects don't read as six
+   copies of the same blob. Each object also varies `--glass-tint` and
+   `--glass-fill` to push its hue and density further apart.
+   ─────────────────────────────────────────────────────────────────── */
+
+/* Frosted. The default: soft, milky, light-catching. */
+@utility glass {
+  --glass-tint: white;
+  --glass-fill: 11%;
+  --glass-edge: 14%;
+  background: linear-gradient(
+    145deg,
+    color-mix(in oklab, var(--glass-tint) var(--glass-fill), transparent),
+    color-mix(in oklab, var(--glass-tint) calc(var(--glass-fill) / 3.5), transparent) 45%,
+    color-mix(in oklab, var(--glass-tint) calc(var(--glass-fill) / 1.8), transparent)
+  );
+  backdrop-filter: blur(14px) saturate(130%);
+  border: 1px solid color-mix(in oklab, var(--glass-tint) var(--glass-edge), transparent);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklab, white 26%, transparent),
+    inset 0 -14px 28px -18px color-mix(in oklab, white 22%, transparent),
+    0 24px 60px -24px rgb(0 0 0 / 0.85);
+}
+
+/* Obsidian. Dark polished lacquer — for the vinyl, which should read
+   as a black record, not a white frosted disc. */
+@utility glass-obsidian {
+  background: linear-gradient(
+    150deg,
+    rgb(255 255 255 / 0.12),
+    rgb(6 8 14 / 0.74) 38%,
+    rgb(2 3 6 / 0.88)
+  );
+  backdrop-filter: blur(8px) saturate(120%);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.24),
+    0 22px 55px -22px rgb(0 0 0 / 0.95);
+}
+
+/* Clear. Thin, sharp, barely there — a shard rather than a solid. */
+@utility glass-clear {
+  --glass-tint: white;
+  background: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--glass-tint) 8%, transparent),
+    transparent 55%,
+    color-mix(in oklab, var(--glass-tint) 5%, transparent)
+  );
+  backdrop-filter: blur(20px) saturate(145%);
+  border: 1px solid color-mix(in oklab, var(--glass-tint) 18%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.3),
+    0 16px 40px -18px rgb(0 0 0 / 0.7);
+}
+
+/* Procedural film grain. Keeps the poster placeholders from reading as flat CSS. */
+@utility grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 220px 220px;
+}
+
+/* Faint technical grid — gives the darker sections structure without noise. */
+@utility grid-lines {
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in oklab, var(--color-line) 42%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--color-line) 42%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 72px 72px;
+}
+
+@layer components {
+  /*
+   * The pointer droplet. Same lens trick as the navbar, tuned smaller and
+   * rounder, plus a hue shift so colour visibly changes through it — that
+   * shift is the thing that reads as "looking through water".
+   */
+  .cursor-drop {
+    background: radial-gradient(
+      circle at 32% 28%,
+      rgb(255 255 255 / 0.42),
+      rgb(255 255 255 / 0.08) 46%,
+      rgb(255 255 255 / 0.02) 70%
+    );
+    backdrop-filter: blur(0.5px) saturate(210%) brightness(1.15) hue-rotate(28deg);
+    backdrop-filter: blur(0.5px) saturate(210%) brightness(1.15) hue-rotate(28deg)
+      url(#liquid-lens);
+    box-shadow:
+      inset 0 1px 1px 0 rgb(255 255 255 / 0.75),
+      inset 0 -2px 3px 0 rgb(255 255 255 / 0.3),
+      inset 0 0 0 1px rgb(255 255 255 / 0.28),
+      0 4px 14px -4px rgb(0 0 0 / 0.5);
+    transition: opacity 240ms var(--ease-glass);
+  }
+
+  /*
+   * Hover fill for buttons. Scales from the top edge instead of fading the
+   * whole surface at once, so the colour arrives like liquid filling the
+   * shape rather than the element switching state.
+   */
+  .button-wash {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    background: var(--wash, transparent);
+    transform: scaleY(0);
+    transform-origin: top;
+    transition:
+      transform 520ms var(--ease-glass),
+      opacity 320ms var(--ease-glass);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .group\/flip:hover .button-wash,
+  .group\/flip:focus-visible .button-wash {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+
+  /* Leaving drains it back out of the bottom rather than retracting upward. */
+  .group\/flip:not(:hover) .button-wash {
+    transform-origin: bottom;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .button-wash {
+      transition: opacity 200ms linear;
+      transform: scaleY(1);
+    }
+  }
+
+  /*
+   * Per-letter flip for button labels. Each character is a two-faced card:
+   * the visible face sits half a line-height toward the viewer, the incoming
+   * face is hinged 90° below it. Rotating the wrapper swaps them.
+   *
+   * The stagger lives in `--i`, set per character, so the label ripples
+   * instead of snapping as one block — that's the whole point of the effect.
+   */
+  .flip-char {
+    display: inline-block;
+    position: relative;
+    line-height: 1;
+    perspective: 420px;
+  }
+
+  .flip-char__inner {
+    display: inline-block;
+    transform-style: preserve-3d;
+    transition: transform 420ms var(--ease-glass);
+    transition-delay: calc(var(--i, 0) * 24ms);
+  }
+
+  .flip-char__face {
+    display: block;
+    backface-visibility: hidden;
+    transform: translateZ(0.5em);
+  }
+
+  .flip-char__face--incoming {
+    position: absolute;
+    inset: 0;
+    transform: rotateX(-90deg) translateZ(0.5em);
+  }
+
+  .group\/flip:hover .flip-char__inner,
+  .group\/flip:focus-visible .flip-char__inner {
+    transform: rotateX(90deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .flip-char__inner {
+      transition: none;
+    }
+    .group\/flip:hover .flip-char__inner,
+    .group\/flip:focus-visible .flip-char__inner {
+      transform: none;
+    }
+  }
+}
+
+/* Capsule chrome for the floating navbar. Heavy blur, hairline edge,
+   light caught along the top like a real cylinder. */
+@utility glass-pill {
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0.09), rgb(255 255 255 / 0.03));
+  backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.16),
+    inset 0 -1px 0 0 rgb(0 0 0 / 0.3),
+    0 12px 40px -12px rgb(0 0 0 / 0.8);
+}
+
+/*
+ * The stacked demo windows. Opaque on purpose: these sit on top of each other,
+ * so any translucency lets the window underneath read straight through — two
+ * URL bars, two sidebars. The glass is faked with an edge highlight and a
+ * diagonal sheen instead, and there is deliberately no backdrop-filter, which
+ * on four stacked full-size elements is what makes the scroll chug.
+ */
+@utility screen-panel {
+  background:
+    linear-gradient(200deg, rgb(255 255 255 / 0.06), transparent 38%),
+    linear-gradient(170deg, #17171c, #09090c);
+  border: 1px solid rgb(255 255 255 / 0.11);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.14),
+    0 40px 90px -30px rgb(0 0 0 / 0.9);
+}
+
+/* Liquid glass: blurred, tinted, and actually refracting what's behind it.
+   The second declaration only survives in engines that accept a filter
+   reference in backdrop-filter; everywhere else the first one stands, so the
+   bar degrades to plain frosted glass instead of losing its background. */
+@utility glass-liquid {
+  /* Driven from the header: 0 over the hero, 1 once you're into the page, so
+     the bar materialises with scroll instead of switching on at a threshold. */
+  --glass-alpha: 1;
+  background: linear-gradient(
+    to bottom,
+    rgb(255 255 255 / calc(0.14 * var(--glass-alpha))),
+    rgb(255 255 255 / calc(0.04 * var(--glass-alpha)))
+  );
+  border: 1px solid rgb(255 255 255 / calc(0.18 * var(--glass-alpha)));
+  /* Brightness and saturation lift are what make it read as *glass* rather
+     than a grey scrim — real glass concentrates the light it passes. */
+  backdrop-filter: blur(calc(7px * var(--glass-alpha))) saturate(185%) brightness(1.12);
+  backdrop-filter: blur(calc(7px * var(--glass-alpha))) saturate(185%) brightness(1.12)
+    url(#liquid-bar);
+  box-shadow:
+    /* Bright top edge, dark bottom edge — the classic lit-from-above read. */
+    inset 0 1px 0.5px 0 rgb(255 255 255 / calc(0.55 * var(--glass-alpha))),
+    inset 0 -1px 0.5px 0 rgb(0 0 0 / calc(0.4 * var(--glass-alpha))),
+    inset 1px 0 0.5px 0 rgb(255 255 255 / calc(0.14 * var(--glass-alpha))),
+    inset -1px 0 0.5px 0 rgb(255 255 255 / calc(0.14 * var(--glass-alpha))),
+    0 18px 50px -18px rgb(0 0 0 / calc(0.75 * var(--glass-alpha)));
+}
+
+/* Same capsule, inverted for the off-white app canvas. The light-tinted
+   version above disappears out here — white glass on a white page. */
+@utility glass-pill-ink {
+  background: linear-gradient(to bottom, rgb(24 24 29 / 0.94), rgb(11 11 15 / 0.94));
+  backdrop-filter: blur(22px) saturate(150%);
+  border: 1px solid rgb(255 255 255 / 0.09);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.13),
+    0 20px 55px -20px rgb(0 0 0 / 0.55);
+}
+
+/* The big frosted surfaces — device screens and anything over live colour. */
+@utility glass-panel {
+  background: linear-gradient(160deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0.02));
+  backdrop-filter: blur(28px) saturate(150%);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.14),
+    0 50px 110px -40px rgb(0 0 0 / 0.95);
+}
+
+/* Hairline border that catches light at the top edge, like real glass. */
+@utility panel {
+  background: linear-gradient(
+    170deg,
+    color-mix(in oklab, var(--color-elevated) 70%, transparent),
+    color-mix(in oklab, var(--color-deep) 88%, transparent)
+  );
+  border: 1px solid color-mix(in oklab, white 8%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklab, white 12%, transparent),
+    0 40px 90px -50px rgb(0 0 0 / 0.95);
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Horizontal card rows fade at the edges instead of hard-cutting.
+   `--mask-edge` should match the row's horizontal padding so the first and
+   last cards are never dimmed at either end of the scroll. */
+@utility mask-edges-x {
+  --mask-edge: 1.5rem;
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black var(--mask-edge),
+    black calc(100% - var(--mask-edge)),
+    transparent 100%
+  );
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    /* Lenis owns scrolling; native smooth behaviour would fight it. When Lenis
+       is off (reduced motion) the `.lenis` class is absent and this applies. */
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* The droplet replaces the pointer outright, so the system one goes away —
+     except over text entry, where the caret target still matters. */
+  html.liquid-cursor,
+  html.liquid-cursor * {
+    cursor: none;
+  }
+
+  html.liquid-cursor input,
+  html.liquid-cursor textarea,
+  html.liquid-cursor select {
+    cursor: auto;
+  }
+
+  /* Lenis runtime hooks */
+  html.lenis,
+  html.lenis body {
+    height: auto;
+  }
+
+  /* Guard on `.lenis` itself, not `.lenis-smooth` — that class isn't always
+     applied, and native smooth scrolling fights Lenis on every anchor jump. */
+  html.lenis {
+    scroll-behavior: auto !important;
+  }
+
+  .lenis [data-lenis-prevent] {
+    overscroll-behavior: contain;
+  }
+
+  .lenis.lenis-stopped {
+    overflow: hidden;
+  }
+
+  body {
+    @apply bg-void font-sans text-mist antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-signal) 30%, transparent);
+    color: var(--color-chalk);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 3px;
+  }
+
+  /*
+   * Subtitles.
+   *
+   * Left unstyled, browsers draw cues as white text on an opaque black slab in
+   * their own default face — legible, but it looks like a different piece of
+   * software has been pasted over the film. A translucent ground and the app's
+   * own type settle it back into the page.
+   *
+   * `::cue` accepts only a small set of properties, so this is deliberately
+   * narrow: anything to do with layout or the box itself is ignored by the
+   * engine rather than merely unsupported.
+   */
+  ::cue {
+    background: color-mix(in oklab, var(--color-void) 65%, transparent);
+    color: var(--color-chalk);
+    font-family: inherit;
+    font-size: 1em;
+    line-height: 1.4;
+    text-shadow: 0 1px 3px rgb(0 0 0 / 0.9);
+  }
+}
+
+@layer utilities {
+  /* Rides alongside Tailwind's generated `.font-display` (which sets the
+     family) and adds the width-axis setting that gives headlines presence. */
+  .font-display {
+    font-variation-settings: 'wdth' 112;
+    font-optical-sizing: auto;
+  }
+}
+
+/*
+ * The record's rotation.
+ *
+ * A keyframe rather than a transform driven from JavaScript: this runs on the
+ * compositor, so it keeps turning smoothly while the main thread is busy
+ * drawing the visualiser — and pausing the animation freezes it in place
+ * instead of snapping back to zero.
+ */
+@keyframes music-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/*
+ * The ambient wash behind the music page.
+ *
+ * Two large radial blooms drifting across each other. Deliberately slow and
+ * deliberately low-contrast — this sits behind everything on the page, so
+ * anything faster reads as a distraction rather than atmosphere.
+ */
+/*
+ * A full-screen stage opening out of the control that summoned it — used by
+ * both the music and watch pages.
+ *
+ * A CSS keyframe rather than a Framer transition. The page is portalled,
+ * fixed, and inside an `AnimatePresence`, and animating `clip-path` through
+ * Motion in that combination left the element parked on its initial frame —
+ * clipped to a zero-radius circle, which is a fully working page that cannot
+ * be seen. CSS owns this one property and cannot be talked out of running it.
+ *
+ * `--reveal-x` / `--reveal-y` are set inline from the summoning control's box.
+ */
+@keyframes stage-reveal {
+  from {
+    clip-path: circle(0px at var(--reveal-x, 50%) var(--reveal-y, 50%));
+    opacity: 0.55;
+  }
+  to {
+    clip-path: circle(150vmax at var(--reveal-x, 50%) var(--reveal-y, 50%));
+    opacity: 1;
+  }
+}
+
+@keyframes music-drift {
+  0% {
+    transform: translate3d(-6%, -4%, 0) scale(1.05);
+  }
+  50% {
+    transform: translate3d(6%, 5%, 0) scale(1.18);
+  }
+  100% {
+    transform: translate3d(-6%, -4%, 0) scale(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Both of these are pure decoration, and both are large moving areas —
+     exactly what this preference exists to switch off. */
+  [style*='music-spin'],
+  [style*='music-drift'] {
+    animation: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Reduced motion — background layers fall back to a static, still
+   well-composed version rather than freezing mid-animation.
+   ═══════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .marquee-track {
+    animation: none !important;
+    transform: translate3d(-8%, 0, 0);
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Liquid glass controls
+   ───────────────────────────────────────────────────────────────
+   Every on-screen button (not the navbar, which has its own WebGL
+   lens) is a slab of glass sitting over live artwork.
+
+   Two things make it read as glass rather than as a frosted panel:
+   the backdrop is *bent* through `#liquid-pill`, not merely blurred,
+   and the rim picks up an iridescent sheen that follows the pointer
+   — light catching an edge, which is the whole tell of a thick
+   transparent object.
+
+   `--lg-*` are written by `useLiquidPointer`, one delegated listener
+   for the whole document.
+   ═══════════════════════════════════════════════════════════════ */
+@layer components {
+  .liquid-btn {
+    --lg-angle: 90deg;
+    --lg-edge: 0;
+    --lg-x: 50%;
+    --lg-y: 50%;
+
+    position: relative;
+    isolation: isolate;
+    border: 1px solid rgb(255 255 255 / 0.16);
+    background:
+      linear-gradient(
+        152deg,
+        rgb(255 255 255 / 0.15),
+        rgb(255 255 255 / 0.045) 46%,
+        rgb(255 255 255 / 0.1)
+      );
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.34),
+      inset 0 -12px 26px -18px rgb(255 255 255 / 0.28),
+      0 14px 34px -18px rgb(0 0 0 / 0.85);
+    backdrop-filter: blur(11px) saturate(165%) brightness(1.05);
+    transition:
+      transform 460ms var(--ease-glass),
+      border-color 460ms var(--ease-glass),
+      box-shadow 460ms var(--ease-glass);
+  }
+
+  /* The real thing where it's supported; the blur above is the floor. */
+  @supports (backdrop-filter: url("#liquid-pill")) {
+    .liquid-btn {
+      backdrop-filter: url("#liquid-pill") blur(7px) saturate(170%) brightness(1.05);
+    }
+  }
+
+  .liquid-btn:hover,
+  .liquid-btn:focus-visible {
+    transform: scale(1.035);
+    border-color: rgb(255 255 255 / 0.3);
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.45),
+      inset 0 -12px 26px -16px rgb(255 255 255 / 0.35),
+      0 20px 46px -20px rgb(0 0 0 / 0.9);
+  }
+
+  .liquid-btn:active {
+    transform: scale(0.985);
+  }
+
+  /* The rim. A conic sweep rotated to the pointer, masked to the border
+     only — so it lights the edge nearest your cursor and fades around. */
+  .liquid-btn::before {
+    content: "";
+    position: absolute;
+    /* Inside the box, not straddling it: the button clips its own overflow to
+       contain the wash, and a rim at -1px would be sliced off. */
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: conic-gradient(
+      from var(--lg-angle) at 50% 50%,
+      #ff2d6f 0deg,
+      #ff8a3d 52deg,
+      #ffe86b 108deg,
+      #52ffb8 164deg,
+      #3fd0ff 220deg,
+      #8a6bff 276deg,
+      #ff2d6f 360deg
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 2;
+    transition: opacity 420ms var(--ease-glass);
+  }
+
+  /* Brighter the closer the pointer is to an edge — the bloom belongs to
+     the rim, so pointing at the middle should barely light it. */
+  .liquid-btn:hover::before,
+  .liquid-btn:focus-visible::before {
+    opacity: calc(0.4 + 0.6 * var(--lg-edge));
+  }
+
+  /* Interior bloom: colour spilling in from where the light hits, plus the
+     project's grain so it stays filmic instead of looking like plastic.
+     Negative z-index keeps it above the fill and behind the label. */
+  .liquid-btn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+      radial-gradient(
+        130% 150% at var(--lg-x) var(--lg-y),
+        rgb(255 130 195 / 0.3),
+        transparent 58%
+      ),
+      conic-gradient(
+        from var(--lg-angle) at var(--lg-x) var(--lg-y),
+        rgb(255 90 140 / 0.22),
+        rgb(255 205 90 / 0.18),
+        rgb(90 255 200 / 0.18),
+        rgb(90 190 255 / 0.22),
+        rgb(170 120 255 / 0.22),
+        rgb(255 90 140 / 0.22)
+      );
+    filter: blur(7px);
+    mix-blend-mode: screen;
+    opacity: 0;
+    pointer-events: none;
+    z-index: -1;
+    transition: opacity 420ms var(--ease-glass);
+  }
+
+  .liquid-btn:hover::after,
+  .liquid-btn:focus-visible::after {
+    opacity: calc(0.5 + 0.5 * var(--lg-edge));
+  }
+
+  /* Reduced motion keeps the glass and the sheen, drops the movement. */
+  @media (prefers-reduced-motion: reduce) {
+    .liquid-btn:hover,
+    .liquid-btn:focus-visible,
+    .liquid-btn:active {
+      transform: none;
+    }
+  }
+}
+
+@layer components {
+  /* The primary action. Same glass, tinted — hierarchy without breaking the
+     material. */
+  .liquid-btn.is-accent {
+    border-color: color-mix(in oklab, var(--color-signal) 48%, transparent);
+    background: linear-gradient(
+      152deg,
+      color-mix(in oklab, var(--color-signal) 46%, transparent),
+      color-mix(in oklab, var(--color-signal) 18%, transparent) 46%,
+      color-mix(in oklab, var(--color-signal) 36%, transparent)
+    );
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.4),
+      0 16px 40px -18px color-mix(in oklab, var(--color-signal) 70%, transparent);
+  }
+
+  .liquid-btn.is-accent:hover,
+  .liquid-btn.is-accent:focus-visible {
+    border-color: color-mix(in oklab, var(--color-signal) 70%, transparent);
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.5),
+      0 22px 52px -20px color-mix(in oklab, var(--color-signal) 85%, transparent);
+  }
+}
+
+@layer components {
+  /*
+   * Glass over photographs.
+   *
+   * The hub's rails sit on backdrops that hold bright sky and dark water in one
+   * frame, and clear glass simply vanishes against half of that. This keeps the
+   * dark scrim that guarantees white text is legible anywhere, while still
+   * bending the backdrop and catching the rim light — the readable compromise
+   * between a solid chip and a pane you can't read through.
+   */
+  .liquid-btn.is-scrim {
+    border-color: rgb(255 255 255 / 0.2);
+    background: linear-gradient(
+      152deg,
+      rgb(0 0 0 / 0.36),
+      rgb(0 0 0 / 0.26) 46%,
+      rgb(0 0 0 / 0.33)
+    );
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.22),
+      0 14px 40px -18px rgb(0 0 0 / 0.85);
+  }
+
+  .liquid-btn.is-scrim:hover,
+  .liquid-btn.is-scrim:focus-visible {
+    border-color: rgb(255 255 255 / 0.36);
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.3),
+      0 22px 52px -22px rgb(0 0 0 / 0.92);
+  }
+}
+
+/* ---- Scroll reveals on the landing page ----
+   See `features/landing/components/Reveal.tsx` for why these fire once on
+   entry rather than tracking the scrollbar. */
+
+/*
+ * Text that arrives on a moving band of light.
+ *
+ * The type is transparent and filled by a gradient clipped to the glyphs, and
+ * the gradient is written so that the three states of a letter are three
+ * places along it:
+ *
+ *   [ settled chalk ......… | red → amber → blue glow | nothing at all ]
+ *
+ * Sliding that from right to left drags the lit edge across the line, so each
+ * letter goes from *absent*, to lit as the band crosses it, to plain chalk
+ * behind it. The word is not sitting there glowing — it is being written.
+ *
+ * The colours are the ones the app already uses to mean "somebody is here":
+ * the signal red of a live dot, the amber of a second person, the blue of a
+ * third. The line lights up in the colours of the room filling up.
+ */
+.sweep-text {
+  background-image: linear-gradient(
+    92deg,
+    var(--color-chalk) 0%,
+    var(--color-chalk) 26%,
+    /* the lit edge — narrow, and hottest at its front */
+    #ffd9a0 31%,
+    var(--color-signal-bright) 35%,
+    #ff4d8d 38%,
+    #a06bff 41%,
+    #6fb4ff 44%,
+    /* and then nothing, which is the part that has not arrived yet */
+    transparent 49%,
+    transparent 100%
+  );
+  background-size: 320% 100%;
+  /* Parked on the empty end of the gradient: the line is genuinely not there
+     yet, rather than there and faint. */
+  background-position: 100% 50%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  transition: background-position 1.5s cubic-bezier(0.28, 0.9, 0.3, 1);
+}
+
+/* Only promoted while it still has somewhere to go — a compositor layer per
+   heading, held for the life of the page, is memory spent on a finished
+   animation. */
+.sweep-text[data-swept='false'] {
+  will-change: background-position;
+}
+
+.sweep-text[data-swept='true'] {
+  background-position: 0% 50%;
+}
+
+/*
+ * A block arriving behind the same edge.
+ *
+ * Not a fade and not only a rise: the content is wiped in left to right by a
+ * `clip-path`, travelling the same direction as the light above it, with a
+ * short lift and a little blur burning off as it lands. One gesture repeated
+ * at two scales reads as a page with a direction; a fade reads as a page
+ * loading slowly.
+ */
+.reveal-mask {
+  /* Room for descenders, focus rings and shadows a tight clip would shave. */
+  margin: -0.4em;
+  padding: 0.4em;
+}
+
+.reveal-mask__inner {
+  clip-path: inset(0 100% 0 0);
+  transform: translateY(0.5em);
+  opacity: 0;
+  filter: blur(6px);
+  transition:
+    clip-path 1.05s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.9s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.7s ease,
+    opacity 0.5s ease;
+}
+
+.reveal-mask[data-shown='true'] .reveal-mask__inner {
+  clip-path: inset(0 0 0 0);
+  transform: none;
+  opacity: 1;
+  filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Arrive finished. The sweep and the wipe are both decoration, and the
+     words underneath them are the part that matters. */
+  .sweep-text,
+  .reveal-mask__inner {
+    transition: none;
+  }
+
+  .sweep-text {
+    background-position: 0% 50%;
+  }
+
+  .reveal-mask__inner {
+    clip-path: none;
+    transform: none;
+    opacity: 1;
+    filter: none;
+  }
+}
+
+/*
+ * No scrollbar.
+ *
+ * The page already shows its own position — the spine down the left is a real
+ * scrub bar with the chapters marked on it — so the native bar is a second,
+ * uglier answer to a question that has already been answered.
+ *
+ * Scrolling itself is untouched: this hides the bar, it does not lock the
+ * page, so the wheel, the keyboard, the trackpad and every assistive tool
+ * behave exactly as before. Both syntaxes are needed — Firefox takes the
+ * standard property, WebKit still only takes its pseudo-element.
+ */
+html {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/*
+ * The card that floats on the moving glass.
+ *
+ * `screen-panel` is opaque — correct for a device mockup, wrong here, because
+ * an opaque box on a moving surface reads as a hole cut in it rather than a
+ * pane resting on it. This is translucent and blurred instead, so the folds
+ * travel visibly behind the form and the card sits *in* the scene.
+ *
+ * The two edges do the floating. A bright inset hairline along the top is the
+ * light catching the near edge of a sheet of glass; a long, very soft drop
+ * shadow underneath is what separates it from the surface without drawing a
+ * border anybody notices.
+ */
+@utility float-panel {
+  /*
+   * A polished slab set against a rough wall.
+   *
+   * The backdrop is stone now, and the pleasure of the pairing is the contrast
+   * of materials: something smooth, cool and man-made resting on something
+   * coarse and not. So this is no longer tuned to let colour through — there
+   * is no colour behind it to save — it is tuned to be visibly a different
+   * substance from the surface it sits on.
+   *
+   * The blur is the load-bearing part. Grain read through it goes soft while
+   * the panel's own edge stays sharp, and that difference alone is what tells
+   * the eye one thing is in front of the other. Saturation is left near
+   * neutral, because pushing it on a grey wall only makes the frost look dirty.
+   */
+  background:
+    linear-gradient(198deg, rgb(255 255 255 / 0.075), rgb(255 255 255 / 0.012) 52%),
+    rgb(9 9 12 / 0.66);
+  backdrop-filter: blur(22px) saturate(105%);
+  -webkit-backdrop-filter: blur(22px) saturate(105%);
+  border: 1px solid rgb(255 255 255 / 0.11);
+  box-shadow:
+    /* The lit near edge of the slab, and a fainter far one. */
+    inset 0 1px 0 0 rgb(255 255 255 / 0.16),
+    inset 0 -1px 0 0 rgb(255 255 255 / 0.04),
+    /*
+     * A tight contact shadow, then a wide one. The tight shadow is what makes
+     * it look placed against the wall rather than hovering in front of it —
+     * without it a panel on a textured ground reads as a cut-out.
+     */
+    0 1px 2px 0 rgb(0 0 0 / 0.6),
+    0 10px 24px -8px rgb(0 0 0 / 0.7),
+    0 44px 90px -40px rgb(0 0 0 / 0.85);
+}
+
+@utility stone-type {
+  /*
+   * Type set on a rough wall.
+   *
+   * A pale fleck landing under a letter costs it its edge, and at body size
+   * that is the difference between reading and squinting. A short, dark shadow
+   * gives every glyph its own ground without announcing itself as a shadow —
+   * the wide second one lifts the whole block a little off the grain.
+   *
+   * Inherited deliberately, so a section gets it once rather than every
+   * heading and paragraph opting in and one of them being forgotten.
+   */
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 0.7),
+    0 2px 18px rgb(0 0 0 / 0.55);
+}
+
+
+/*
+ * Stop iOS Safari zooming when a field takes focus.
+ *
+ * Safari treats any focused input whose text is under 16px as too small to
+ * read and zooms the whole page to compensate — which throws the layout off
+ * centre mid-form and does not zoom back out on blur. The fields are sized in
+ * rem for the design, so this lifts only the rendered text, only on phones,
+ * and leaves every other screen alone.
+ *
+ * Checkboxes and radios are excluded: they have no text to read, and giving
+ * them a font-size changes how the control itself is drawn.
+ */
+@media (max-width: 639px) {
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/*
+ * Generated notes.
+ *
+ * The model writes Markdown, and Markdown arrives as bare tags with no classes
+ * to hook onto — so the styling has to reach them by element. Scoped under one
+ * class so it can only ever apply to notes, never to the app's own markup.
+ *
+ * Read at length rather than glanced at, which is why the measure is capped
+ * and the leading is looser than the rest of the app: this is the one surface
+ * here somebody sits with for ten minutes.
+ */
+.study-prose {
+  max-width: 44rem;
+  color: var(--study-soft);
+  font-size: 0.9rem;
+  line-height: 1.75;
+}
+
+.study-prose > * + * {
+  margin-top: 1em;
+}
+
+.study-prose h1,
+.study-prose h2,
+.study-prose h3,
+.study-prose h4 {
+  color: var(--study-text);
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.study-prose h1 { font-size: 1.4rem; margin-top: 1.8em; }
+.study-prose h2 { font-size: 1.15rem; margin-top: 1.7em; }
+.study-prose h3 { font-size: 1rem; margin-top: 1.5em; }
+.study-prose h4 { font-size: 0.92rem; margin-top: 1.4em; }
+
+.study-prose strong {
+  color: var(--study-text);
+  font-weight: 600;
+}
+
+.study-prose a {
+  color: var(--study-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.study-prose ul,
+.study-prose ol {
+  padding-left: 1.3em;
+}
+
+.study-prose ul { list-style: disc; }
+.study-prose ol { list-style: decimal; }
+.study-prose li::marker { color: var(--color-dusk); }
+.study-prose li + li { margin-top: 0.4em; }
+
+.study-prose blockquote {
+  border-left: 2px solid var(--study-line);
+  padding-left: 1em;
+  color: var(--color-dusk);
+}
+
+/* Wide tables scroll inside their own box rather than pushing the page
+   sideways — a comparison of six things is common in notes and would
+   otherwise break the whole column. */
+.study-prose table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.study-prose th,
+.study-prose td {
+  border: 1px solid var(--study-line);
+  padding: 0.5em 0.75em;
+  text-align: left;
+  vertical-align: top;
+}
+
+.study-prose th {
+  background: var(--study-card);
+  color: var(--study-text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.study-prose code {
+  background: var(--study-card-strong);
+  border-radius: 0.35em;
+  padding: 0.15em 0.4em;
+  font-size: 0.86em;
+  color: var(--study-text);
+}
+
+.study-prose pre {
+  overflow-x: auto;
+  border: 1px solid var(--study-line);
+  border-radius: var(--radius-card, 0.9rem);
+  background: var(--study-card);
+  padding: 0.9rem 1rem;
+}
+
+.study-prose pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.study-prose hr {
+  border: 0;
+  border-top: 1px solid var(--study-line);
+  margin: 2em 0;
+}
+
+/* The same prose in a column a third as wide. A tutor's answer is a few
+   paragraphs in a side panel, not a page — the article rhythm above leaves it
+   mostly whitespace. */
+.study-prose-tight {
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
+
+.study-prose-tight > * + * { margin-top: 0.75em; }
+.study-prose-tight h1 { font-size: 1rem; margin-top: 1.1em; }
+.study-prose-tight h2 { font-size: 0.94rem; margin-top: 1.1em; }
+.study-prose-tight h3,
+.study-prose-tight h4 { font-size: 0.88rem; margin-top: 1em; }
+.study-prose-tight pre { padding: 0.6rem 0.75rem; }
+.study-prose-tight pre code { font-size: 0.74rem; }
+.study-prose-tight hr { margin: 1.2em 0; }
+
+/* ═══════════════════════════════════════════════════════════════
+   The Study tab's own palette
+   ───────────────────────────────────────────────────────────────
+   Everything else in this app is dark and only dark, which is right
+   for a room built around watching things together. Study is the one
+   place people sit for two hours in a lit room reading text, and a
+   black page is the wrong surface for that as often as it is the
+   right one — so this scope carries its own palette and the person
+   picks which.
+
+   Scoped rather than global on purpose. Flipping the whole app to
+   light would mean restyling a film player and a record sleeve to be
+   readable on white, and neither of those wants to be.
+   ═══════════════════════════════════════════════════════════════ */
+.study-scope {
+  --study-bg: #0a0a0b;
+  --study-bg-soft: #101012;
+  --study-card: rgb(255 255 255 / 0.035);
+  --study-card-strong: rgb(255 255 255 / 0.065);
+  --study-line: rgb(255 255 255 / 0.09);
+  --study-line-strong: rgb(255 255 255 / 0.16);
+  --study-text: #f4f4f5;
+  --study-soft: #a1a1aa;
+  --study-faint: #71717a;
+  --study-on-accent: #ffffff;
+  --study-good: #34d399;
+  --study-good-soft: rgb(52 211 153 / 0.12);
+  --study-bad: #fb7185;
+  --study-bad-soft: rgb(251 113 133 / 0.12);
+  --study-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  /* The lesson canvas: a shade below the page, so it reads as a screen being
+     watched rather than a panel sitting on one. */
+  --study-stage: #08080a;
+  --study-caption: rgb(10 10 12 / 0.82);
+
+  background: var(--study-bg);
+  color: var(--study-text);
+  color-scheme: dark;
+}
+
+.study-scope[data-study-theme='light'] {
+  /* Not pure white. A page of body text on #fff is the classic way to
+     make a screen tiring to read for an hour, and warming it very
+     slightly is what stops the borders below reading as grey smears. */
+  --study-bg: #fbfaf9;
+  --study-bg-soft: #f4f2f0;
+  --study-card: rgb(17 17 20 / 0.028);
+  --study-card-strong: rgb(17 17 20 / 0.06);
+  --study-line: rgb(17 17 20 / 0.1);
+  --study-line-strong: rgb(17 17 20 / 0.2);
+  --study-text: #17171b;
+  --study-soft: #55555f;
+  --study-faint: #8a8a94;
+  --study-good: #0f9a6a;
+  --study-good-soft: rgb(15 154 106 / 0.1);
+  --study-bad: #d13d4e;
+  --study-bad-soft: rgb(209 61 78 / 0.09);
+  --study-shadow: 0 1px 2px rgb(17 17 20 / 0.07);
+  --study-stage: #f2f0ee;
+  --study-caption: rgb(255 255 255 / 0.86);
+  color-scheme: light;
+}
+
+/* Accents. The default is the app's own red, so Study still belongs to
+   the room it lives in; the rest are for people who find red at the
+   edge of their vision for two hours a lot. Each carries a light-mode
+   value too, because a hue that reads well on black is usually too pale
+   on paper. */
+.study-scope { --study-accent: #ff3b30; --study-accent-soft: rgb(255 59 48 / 0.14); }
+.study-scope[data-study-accent='amber'] { --study-accent: #f5a524; --study-accent-soft: rgb(245 165 36 / 0.16); }
+.study-scope[data-study-accent='emerald'] { --study-accent: #10b981; --study-accent-soft: rgb(16 185 129 / 0.15); }
+.study-scope[data-study-accent='violet'] { --study-accent: #a78bfa; --study-accent-soft: rgb(167 139 250 / 0.16); }
+.study-scope[data-study-accent='blue'] { --study-accent: #60a5fa; --study-accent-soft: rgb(96 165 250 / 0.16); }
+
+.study-scope[data-study-theme='light'] { --study-accent: #d92d20; --study-accent-soft: rgb(217 45 32 / 0.09); }
+.study-scope[data-study-theme='light'][data-study-accent='amber'] { --study-accent: #b45309; --study-accent-soft: rgb(180 83 9 / 0.09); }
+.study-scope[data-study-theme='light'][data-study-accent='emerald'] { --study-accent: #047857; --study-accent-soft: rgb(4 120 87 / 0.09); }
+.study-scope[data-study-theme='light'][data-study-accent='violet'] { --study-accent: #6d28d9; --study-accent-soft: rgb(109 40 217 / 0.09); }
+.study-scope[data-study-theme='light'][data-study-accent='blue'] { --study-accent: #1d4ed8; --study-accent-soft: rgb(29 78 216 / 0.09); }
+
+/*
+ * In the components layer, not loose at the end of the file.
+ *
+ * These are shorthands for shapes, not final say on them — `study-btn size-9
+ * px-0` has to give a square icon button, and a plain rule further down the
+ * stylesheet beats a utility on source order instead. That is how the header
+ * controls ended up 36px boxes holding 7px of content: the class kept its own
+ * padding and squeezed the icon into what was left.
+ */
+@layer components {
+  /* ── The four shapes the whole tab is built from ──────────────────
+     Written as classes rather than repeated Tailwind strings because
+     each is used in a dozen places and each has to answer to the theme
+     above. A card is a card in both. */
+
+  .study-card {
+    border: 1px solid var(--study-line);
+    border-radius: 0.9rem;
+    background: var(--study-card);
+  }
+
+  .study-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: 2.25rem;
+    padding-inline: 0.9rem;
+    border: 1px solid var(--study-line);
+    border-radius: 999px;
+    background: var(--study-card);
+    color: var(--study-text);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    transition: background-color 0.18s, border-color 0.18s, opacity 0.18s;
+  }
+  .study-btn:hover:not(:disabled) { background: var(--study-card-strong); border-color: var(--study-line-strong); }
+  .study-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .study-btn-primary {
+    border-color: transparent;
+    background: var(--study-accent);
+    color: var(--study-on-accent);
+    font-weight: 500;
+  }
+  .study-btn-primary:hover:not(:disabled) { background: var(--study-accent); border-color: transparent; filter: brightness(1.08); }
+
+  .study-field {
+    height: 2.25rem;
+    padding-inline: 0.9rem;
+    border: 1px solid var(--study-line);
+    border-radius: 999px;
+    background: var(--study-card);
+    color: var(--study-text);
+    font-size: 0.82rem;
+    outline: none;
+    transition: border-color 0.18s;
+  }
+  .study-field::placeholder { color: var(--study-faint); }
+  .study-field:focus-visible { border-color: var(--study-accent); }
+}
+
+/* One focus ring for the whole tab, in the chosen accent, so keyboard
+   navigation is visible without every button restating it. */
+.study-scope :focus-visible {
+  outline: 2px solid var(--study-accent);
+  outline-offset: 2px;
+}
+
+/* Diagram drawing, for the explainer player. Two keyframes: strokes trace
+   themselves in, labels fade in behind them — text has no stroke to trace. */
+@keyframes study-trace {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes study-fade-in {
+  to { opacity: 1; }
+}
