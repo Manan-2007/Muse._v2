@@ -15,7 +15,7 @@ export function Footer() {
         <a href="#top" className="flex min-h-11 items-center gap-2.5 transition-opacity hover:opacity-80 sm:min-h-0">
           <Logo />
           <span className="font-display text-[0.95rem] font-semibold tracking-[-0.02em] text-chalk">
-            Huddle
+            Muse<span className="text-signal">.</span>
           </span>
         </a>
 
@@ -34,7 +34,7 @@ export function Footer() {
           ))}
         </nav>
 
-        <p className="text-xs text-dusk">© {new Date().getFullYear()} Huddle</p>
+        <p className="text-xs text-dusk">© {new Date().getFullYear()} Muse.</p>
       </div>
 
       {hasRealPosters && (

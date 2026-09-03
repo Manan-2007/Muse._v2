@@ -71,7 +71,7 @@ function captureFromUrl(): string | null {
   }
 
   const ok = window.confirm(
-    `Point Huddle at ${new URL(asked).host}?\n\n` +
+    `Point Muse. at ${new URL(asked).host}?\n\n` +
       'Everything you do here, including signing in, will go to that server. ' +
       'Only continue if it is yours.',
   )

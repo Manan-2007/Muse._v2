@@ -13,9 +13,13 @@
 
   /* ── The two anchors ──────────────────────────────────────────
      Used raw where they earn it: navy carries the dark, red is the
-     signal. Everything below is derived from these two.           */
+     signal. Everything below is derived from these two.
+
+     Muse. shifts the red from pure #ff0000 to the crimson-pink of
+     Muse._v1 (#fa233b) — the app's signature colour, and still a red
+     that reads as "live".                                          */
   --color-navy: #000080;
-  --color-red: #ff0000;
+  --color-red: #fa233b;
 
   /* ── Surfaces: pure neutral dark, no colour cast ──────────────
      Colour comes from the two ambient gradients and the red accent,
@@ -37,9 +41,9 @@
      shared playhead, live cursors, hover + focus glow. Pure
      #ff0000 only for lights and dots — `bright` for any text,
      since pure red on navy fails contrast at small sizes.        */
-  --color-signal: #ff0000;
-  --color-signal-bright: #ff5a5a;
-  --color-signal-deep: #8f0000;
+  --color-signal: #fa233b;
+  --color-signal-bright: #ff6076;
+  --color-signal-deep: #a11226;
 
   /* ── Canvas ───────────────────────────────────────────────────
      The page sits on warm off-white now, with neon linework drifting
@@ -64,7 +68,7 @@
   /* ── Ambient light: red and navy only ─────────────────────────
      A violet third light drags the whole page purple, so the third
      blob is a deep crimson instead — red and navy stay dominant.  */
-  --color-glow-warm: #ff0000;
+  --color-glow-warm: #fa233b;
   --color-glow-cool: #1b1bd6;
   --color-glow-violet: #b00020;
 

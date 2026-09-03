@@ -61,7 +61,7 @@ export function CreateRoomForm({ onCreate }: CreateRoomFormProps) {
      */
     <form onSubmit={handleSubmit}>
       <p className="text-[0.9rem] leading-relaxed text-mist">
-        Pick a type and Huddle sets the mood. You can change it later.
+        Pick a type and Muse. sets the mood. You can change it later.
       </p>
 
       <fieldset className="mt-6">

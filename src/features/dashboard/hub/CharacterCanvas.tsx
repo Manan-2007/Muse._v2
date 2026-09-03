@@ -75,7 +75,7 @@ function Character({
       copy.scale.multiplyScalar(TARGET_SKELETON_HEIGHT / size.y)
     } else {
       console.warn(
-        `[Huddle] ${member.url.split('/').pop()} has no measurable height — left at its export scale.`,
+        `[Muse.] ${member.url.split('/').pop()} has no measurable height — left at its export scale.`,
       )
     }
 

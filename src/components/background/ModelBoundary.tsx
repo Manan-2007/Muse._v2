@@ -16,7 +16,7 @@ export class ModelBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error) {
-    console.warn('[Huddle] Model failed to load, using the CSS object instead.', error)
+    console.warn('[Muse.] Model failed to load, using the CSS object instead.', error)
   }
 
   render() {

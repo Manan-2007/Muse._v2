@@ -129,7 +129,7 @@ export function Header() {
               both auth buttons in the same row, the wordmark is what pushes
               "Sign up" off the edge — and the mark still identifies the site. */}
           <span className="hidden font-display text-[1.02rem] font-semibold tracking-[-0.02em] text-chalk min-[380px]:inline">
-            Huddle
+            Muse<span className="text-signal">.</span>
           </span>
         </Link>
 
