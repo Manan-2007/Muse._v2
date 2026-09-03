@@ -243,11 +243,42 @@ export function MusicProvider({
     setPendingPlayId(null)
   }, [pendingPlayId, queue, playNow])
 
+  /* Playback modes. Repeat loops the current track; shuffle makes Next jump to
+     a random queued one. Client-driven — the client tells the room what to play
+     next, so these need no server mode of their own. */
+  const [shuffle, setShuffle] = useState(false)
+  const [repeat, setRepeat] = useState(false)
+  const repeatRef = useRef(repeat)
+  repeatRef.current = repeat
+
   const onEnded = useCallback(() => {
     if (!snapshot) return
+    /* Repeat-one: drop the needle back at the top rather than advancing. */
+    if (repeatRef.current) {
+      send('music:control', { action: 'seek', position: 0 })
+      return
+    }
     /* The seq stamps which track ended, so every client firing at the end of a
        song still only advances the queue once. */
     send('music:ended', { seq: snapshot.seq })
+  }, [send, snapshot])
+
+  const next = useCallback(() => {
+    if (!snapshot) return
+    if (shuffle && queue.length > 1) {
+      const others = queue.filter((entry) => entry.id !== snapshot.track?.id)
+      const pick = others[Math.floor(Math.random() * others.length)]
+      if (pick) {
+        send('music:load', { trackId: pick.id })
+        return
+      }
+    }
+    send('music:next', { seq: snapshot.seq })
+  }, [send, snapshot, shuffle, queue])
+
+  const previous = useCallback(() => {
+    if (!snapshot) return
+    send('music:previous', { seq: snapshot.seq })
   }, [send, snapshot])
 
   /*
@@ -355,6 +386,12 @@ export function MusicProvider({
       playNow,
       onQueued,
       canSearch,
+      shuffle,
+      setShuffle,
+      repeat,
+      setRepeat,
+      next,
+      previous,
     }),
     [
       roomId,
@@ -376,6 +413,10 @@ export function MusicProvider({
       playNow,
       onQueued,
       canSearch,
+      shuffle,
+      repeat,
+      next,
+      previous,
     ],
   )
 

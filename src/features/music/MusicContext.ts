@@ -44,6 +44,16 @@ export type MusicContextValue = {
     playImmediately: boolean,
   ) => void
   canSearch: boolean
+
+  /** Loop the current track instead of advancing. This listener's, not the room's. */
+  repeat: boolean
+  setRepeat: (on: boolean) => void
+  /** Make Next jump to a random queued track. */
+  shuffle: boolean
+  setShuffle: (on: boolean) => void
+  /** Advance respecting shuffle, and step back — both stamped with the seq. */
+  next: () => void
+  previous: () => void
 }
 
 export const MusicContext = createContext<MusicContextValue | null>(null)

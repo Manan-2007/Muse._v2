@@ -37,12 +37,12 @@ is optional and switches on a feature rather than being required.
 
 ---
 
-## The starter library
+## The music
 
-Muse._v1's twenty tracks are seeded into `server/uploads/`, which is the audio
-library the app reads at runtime — drop an audio file in and it appears, no
-import step. Cover art from V1 is stashed in `src/assets/seed/` for the richer,
-metadata-complete catalogue coming in Phase 1.
+Tracks come from YouTube (searched or pasted) and direct audio URLs — nothing
+is hardcoded. New accounts are given a small starter playlist curated from the
+artists and genres they pick on sign-up; after that the library is theirs to
+build.
 
 ---
 

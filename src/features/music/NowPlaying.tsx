@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Heart, MessagesSquare, Mic, Quote } from 'lucide-react'
+import { ChevronDown, Heart, ListMusic, MessagesSquare, Mic, MicOff, Quote } from 'lucide-react'
 
-import { CoverHeading } from '@/features/music/CoverHeading'
 import { LyricsPanel } from '@/features/music/LyricsPanel'
 import { useLyrics } from '@/features/music/useLyrics'
 import { useMusic } from '@/features/music/MusicContext'
@@ -11,16 +10,13 @@ import { Vinyl } from '@/features/music/Vinyl'
 import { cn } from '@/lib/utils'
 
 /**
- * The record, full size.
+ * The record, full size — Muse._v1's player, given a real turntable and the
+ * things V1 never had (a like, the words, the queue, and a room to share it).
  *
- * Its own view rather than the app's home screen. A music app is mostly
- * looking for things to play; this is the moment you stop looking, so it earns
- * a whole screen with nothing else on it — one object, its name, and the
- * transport.
- *
- * The composition is deliberately a single centred column with generous air
- * around it. Everything competing for that space (search, playlists, the
- * queue) lives one gesture away rather than in the corners of this.
+ * One centred column: the record, its name, its artist, and the transport. The
+ * extras live as a quiet cluster in the top corner rather than crowding the
+ * middle, so the page reads as "one song playing" first and a control surface
+ * second.
  */
 export function NowPlaying({
   palette,
@@ -35,7 +31,7 @@ export function NowPlaying({
   unread = 0,
 }: {
   palette: CoverPalette | null
-  /** So the avatar strip can leave you out of it. */
+  /** So the singalong strip can leave you out of it. */
   selfId: string | undefined
   liked: boolean
   onToggleLike: () => void
@@ -48,7 +44,6 @@ export function NowPlaying({
 }) {
   const {
     snapshot,
-    queue,
     send,
     handle,
     position,
@@ -59,18 +54,21 @@ export function NowPlaying({
     volume,
     setVolume,
     singalong,
+    shuffle,
+    setShuffle,
+    repeat,
+    setRepeat,
+    next,
+    previous,
   } = useMusic()
 
   const track = snapshot?.track ?? null
 
   /*
-   * Turning the record to scrub.
-   *
-   * The base is where the playhead was when the grab began; the disc hands back
-   * how many seconds it has been turned since, and the target is the two added.
-   * Seeks are thrown at the room while turning — throttled, because it drives
-   * everyone's playhead and a seek per frame would be a storm — and one final
-   * seek lands on release so the room ends exactly where the finger left it.
+   * Turning the record to scrub. The base is where the playhead was when the
+   * grab began; the disc reports how far it has turned, and the target is the
+   * two added. Seeks are thrown at the room while turning — throttled — with a
+   * final one on release so the room lands where the finger left it.
    */
   const positionRef = useRef(position)
   positionRef.current = position
@@ -79,30 +77,18 @@ export function NowPlaying({
   const scrubBase = useRef(0)
   const lastScrubSeek = useRef(0)
 
-  const seekTo = (seconds: number) =>
-    send('music:control', { action: 'seek', position: seconds })
+  const seekTo = (seconds: number) => send('music:control', { action: 'seek', position: seconds })
 
   const scrubTarget = (deltaSeconds: number) => {
     const max = durationRef.current > 0 ? durationRef.current : Number.MAX_SAFE_INTEGER
     return Math.min(Math.max(scrubBase.current + deltaSeconds, 0), max)
   }
 
-  /*
-   * Local, not shared. Whether the words are showing is a way of looking at
-   * the song rather than a fact about it — the same as being fullscreen — and
-   * pushing it through the room would put them on everybody's screen because
-   * one person wanted to read along.
-   */
+  /* Local, not shared — whether the words are showing is a way of looking at
+     the song, like being fullscreen, not a fact about it. */
   const [showLyrics, setShowLyrics] = useState(false)
   const { lyrics, loading: lyricsLoading, available } = useLyrics(snapshot?.roomId ?? null, track)
 
-  /*
-   * A track with no words puts the record back in the middle.
-   *
-   * Left open, the next song in the queue would land on an empty column with
-   * the record shoved to one side for nothing — the layout would be paying
-   * for a panel with nothing in it.
-   */
   useEffect(() => {
     if (available === false) setShowLyrics(false)
   }, [available])
@@ -110,195 +96,162 @@ export function NowPlaying({
   if (!track || !snapshot) return null
 
   const others = snapshot.listeners.filter((one) => one.id !== selfId)
+  const shared = others.length > 0
   const singers = snapshot.listeners.filter((one) => one.singing)
   const recorders = snapshot.listeners.filter((one) => one.recording)
 
+  const iconButton =
+    'relative grid size-9 shrink-0 place-items-center rounded-full outline-none transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal'
+  const iconIdle = 'text-white/60 hover:bg-white/10 hover:text-chalk'
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
+      {/* Minimal top bar: the way back, a quiet label, and the extras. */}
       <header className="flex shrink-0 items-center justify-between gap-3 px-5 py-4">
         <button
           type="button"
           onClick={onCollapse}
           aria-label="Back to library"
-          className="grid size-9 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-chalk outline-none backdrop-blur-md transition-colors hover:bg-white/[0.1] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+          className={cn(iconButton, iconIdle)}
         >
-          <ChevronDown aria-hidden className="size-4" />
+          <ChevronDown aria-hidden className="size-5" />
         </button>
 
-        <span className="flex items-center gap-3">
-          <span className="text-[0.68rem] uppercase tracking-[0.22em] text-dusk">Now playing</span>
-
-          {/*
-            Everyone else in here, and only them.
-            Your own face is not news to you, and including it would make a
-            room of one look busy. An empty space when you are alone is the
-            honest state.
-          */}
-          {others.length > 0 && (
-            <span className="flex -space-x-2">
-              {others.slice(0, 4).map((one) => (
-                <span
-                  key={one.id}
-                  title={one.singing ? `${one.name} — singing along` : one.name}
-                  className={cn(
-                    'grid size-7 place-items-center rounded-full bg-gradient-to-br from-signal to-signal-deep text-[0.62rem] font-semibold text-white ring-2 ring-void',
-                    one.singing && 'ring-signal/60',
-                  )}
-                >
-                  {one.name.slice(0, 1).toUpperCase()}
-                </span>
-              ))}
-              {others.length > 4 && (
-                <span className="grid size-7 place-items-center rounded-full bg-white/10 text-[0.6rem] font-semibold text-chalk ring-2 ring-void">
-                  +{others.length - 4}
-                </span>
-              )}
-            </span>
-          )}
+        <span className="truncate text-[0.66rem] uppercase tracking-[0.28em] text-dusk">
+          {shared ? `Playing · ${others.length + 1} listening` : 'Playing from your queue'}
         </span>
 
-        <button
-          type="button"
-          onClick={onToggleLike}
-          aria-label={liked ? 'Remove from liked' : 'Like this song'}
-          aria-pressed={liked}
-          className={cn(
-            'grid size-9 place-items-center rounded-full border outline-none backdrop-blur-md transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal',
-            liked
-              ? 'border-signal/40 bg-signal/15 text-signal-bright'
-              : 'border-white/10 bg-white/[0.04] text-chalk hover:bg-white/[0.1]',
-          )}
-        >
-          <Heart aria-hidden className={cn('size-4', liked && 'fill-current')} />
-        </button>
-
-        {/* Offered only once the lookup has found something. A button that
-            leads to "no lyrics" half the time is worse than no button. */}
-        {available && (
-        <button
-          type="button"
-          onClick={() => setShowLyrics((open) => !open)}
-          aria-pressed={showLyrics}
-          aria-label={showLyrics ? 'Hide lyrics' : 'Show lyrics'}
-          className={cn(
-            'grid size-9 shrink-0 place-items-center rounded-full outline-none transition-colors duration-300',
-            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal',
-            showLyrics
-              ? 'bg-chalk text-void'
-              : 'bg-white/[0.06] text-mist ring-1 ring-inset ring-white/10 hover:bg-white/[0.12] hover:text-chalk',
-          )}
-        >
-          <Quote aria-hidden className="size-4" />
-        </button>
-        )}
-
-        {/* The record view draws its own header over the stage's, so the way
-            back to the room has to be repeated here or it disappears for as
-            long as somebody is looking at the record. */}
-        {onTogglePanel && (
+        <span className="flex shrink-0 items-center gap-1">
           <button
             type="button"
-            onClick={onTogglePanel}
-            aria-pressed={panelOpen}
-            aria-label="Chat"
-            className={cn(
-              'relative grid size-9 shrink-0 place-items-center rounded-full outline-none transition-colors duration-300',
-              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal',
-              panelOpen
-                ? 'bg-signal/15 text-chalk ring-1 ring-inset ring-signal/50'
-                : 'bg-white/[0.06] text-mist ring-1 ring-inset ring-white/10 hover:bg-white/[0.12] hover:text-chalk',
-            )}
+            onClick={onToggleLike}
+            aria-label={liked ? 'Remove from liked' : 'Like this song'}
+            aria-pressed={liked}
+            className={cn(iconButton, liked ? 'text-signal-bright' : iconIdle)}
           >
-            <MessagesSquare aria-hidden className="size-4" />
-            {unread > 0 && !panelOpen && (
-              <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-signal px-1 text-[0.6rem] font-semibold leading-4 text-white">
-                {unread > 9 ? '9+' : unread}
-              </span>
-            )}
+            <Heart aria-hidden className={cn('size-[1.15rem]', liked && 'fill-current')} />
           </button>
-        )}
+
+          {available && (
+            <button
+              type="button"
+              onClick={() => setShowLyrics((open) => !open)}
+              aria-pressed={showLyrics}
+              aria-label={showLyrics ? 'Hide lyrics' : 'Show lyrics'}
+              className={cn(iconButton, showLyrics ? 'bg-chalk text-void' : iconIdle)}
+            >
+              <Quote aria-hidden className="size-[1.05rem]" />
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onOpenQueue}
+            aria-pressed={queueOpen}
+            aria-label="Queue"
+            className={cn(iconButton, queueOpen ? 'text-signal-bright' : iconIdle)}
+          >
+            <ListMusic aria-hidden className="size-[1.15rem]" />
+          </button>
+
+          {/* Singing along is a room thing — only offered when someone else is
+              actually here to hear it. */}
+          {shared && (
+            <button
+              type="button"
+              onClick={singalong.toggleSinging}
+              aria-pressed={singalong.singing}
+              aria-label={singalong.singing ? 'Stop singing along' : 'Sing along'}
+              className={cn(iconButton, singalong.singing ? 'text-signal-bright' : iconIdle)}
+            >
+              {singalong.singing ? (
+                <Mic aria-hidden className="size-[1.05rem]" />
+              ) : (
+                <MicOff aria-hidden className="size-[1.05rem]" />
+              )}
+            </button>
+          )}
+
+          {onTogglePanel && (
+            <button
+              type="button"
+              onClick={onTogglePanel}
+              aria-pressed={panelOpen}
+              aria-label="Chat"
+              className={cn(iconButton, panelOpen ? 'text-signal-bright' : iconIdle)}
+            >
+              <MessagesSquare aria-hidden className="size-[1.1rem]" />
+              {unread > 0 && !panelOpen && (
+                <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-signal px-1 text-[0.6rem] font-semibold leading-4 text-white">
+                  {unread > 9 ? '9+' : unread}
+                </span>
+              )}
+            </button>
+          )}
+        </span>
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-8 lg:px-8">
-        {/* The record. Narrows and moves left to make room for the words on a
-            wide screen; on a narrow one the words take the whole column
-            instead, because two of these side by side would leave neither
-            readable. */}
         <div
           className={cn(
-            'flex min-h-0 flex-col items-center justify-center gap-8 px-6',
-            showLyrics
-              ? 'hidden lg:flex lg:w-[44%] lg:shrink-0 lg:px-0'
-              : 'flex-1',
+            'flex min-h-0 flex-col items-center justify-center gap-7 px-6',
+            showLyrics ? 'hidden lg:flex lg:w-[44%] lg:shrink-0 lg:px-0' : 'flex-1',
           )}
         >
-        {/* The record is the subject of this screen, so it takes as much of it
-            as the shortest edge allows rather than a fixed size. */}
-        <Vinyl
-          artwork={track.artwork}
-          playing={snapshot.playing}
-          accent={palette?.base ?? 'var(--color-signal)'}
-          className="w-[min(82vw,min(34rem,52vh))]"
-          scrubbable={duration > 0}
-          onScrubStart={() => {
-            scrubBase.current = positionRef.current
-          }}
-          onScrub={(deltaSeconds) => {
-            const now = performance.now()
-            if (now - lastScrubSeek.current < 120) return
-            lastScrubSeek.current = now
-            seekTo(scrubTarget(deltaSeconds))
-          }}
-          onScrubEnd={(deltaSeconds) => {
-            lastScrubSeek.current = 0
-            seekTo(scrubTarget(deltaSeconds))
-          }}
-        />
-
-        <div className="w-full max-w-2xl text-center">
-          {/* Clamped, because these titles are not written to be headlines —
-              a YouTube upload carries its own parenthetical baggage, and three
-              lines of it pushes the record off the screen it is the subject
-              of. Two lines, then it yields. */}
-          <CoverHeading
+          <Vinyl
             artwork={track.artwork}
-            palette={palette}
-            className="line-clamp-2 text-[clamp(1.5rem,4vw,2.6rem)] leading-[1.06]"
-          >
-            {track.title}
-          </CoverHeading>
+            playing={snapshot.playing}
+            accent={palette?.base ?? 'var(--color-signal)'}
+            className="w-[min(80vw,min(30rem,44vh))]"
+            scrubbable={duration > 0}
+            onScrubStart={() => {
+              scrubBase.current = positionRef.current
+            }}
+            onScrub={(deltaSeconds) => {
+              const now = performance.now()
+              if (now - lastScrubSeek.current < 120) return
+              lastScrubSeek.current = now
+              seekTo(scrubTarget(deltaSeconds))
+            }}
+            onScrubEnd={(deltaSeconds) => {
+              lastScrubSeek.current = 0
+              seekTo(scrubTarget(deltaSeconds))
+            }}
+          />
 
-          {(track.artist ?? track.album) && (
-            <p className="mt-2.5 truncate text-[1rem] font-medium text-[#ffb3bd] [text-shadow:0_2px_10px_rgba(0,0,0,0.5)]">
-              {[track.artist, track.album].filter(Boolean).join(' · ')}
-            </p>
-          )}
+          <div className="w-full max-w-xl text-center">
+            <h1 className="text-balance font-display text-[clamp(1.5rem,4vw,2.4rem)] font-semibold leading-[1.1] tracking-[-0.02em] text-chalk [text-shadow:0_2px_16px_rgba(0,0,0,0.5)] line-clamp-2">
+              {track.title}
+            </h1>
+            {(track.artist ?? track.album) && (
+              <p className="mt-2 truncate text-[1.02rem] font-medium text-[#ffb3bd] [text-shadow:0_2px_10px_rgba(0,0,0,0.5)]">
+                {[track.artist, track.album].filter(Boolean).join(' · ')}
+              </p>
+            )}
 
-          {(singers.length > 0 || recorders.length > 0) && (
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-              {singers.length > 0 && (
-                <span className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 backdrop-blur-md">
-                  <Mic aria-hidden className="size-3.5 text-chalk" />
-                  <span className="text-[0.72rem] text-chalk">
-                    {singers.map((one) => one.name).join(', ')} singing
+            {(singers.length > 0 || recorders.length > 0) && (
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                {singers.length > 0 && (
+                  <span className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 backdrop-blur-md">
+                    <Mic aria-hidden className="size-3.5 text-chalk" />
+                    <span className="text-[0.72rem] text-chalk">
+                      {singers.map((one) => one.name).join(', ')} singing
+                    </span>
                   </span>
-                </span>
-              )}
-
-              {/* Everyone sees this, not just whoever pressed record. */}
-              {recorders.length > 0 && (
-                <span className="flex items-center gap-2 rounded-full border border-signal/40 bg-signal/15 px-3 py-1.5">
-                  <span className="size-2 animate-signal-pulse rounded-full bg-signal-bright" />
-                  <span className="text-[0.72rem] text-chalk">
-                    {recorders.length === 1
-                      ? `${recorders[0]!.name} is recording`
-                      : `${recorders.length} recording`}
+                )}
+                {recorders.length > 0 && (
+                  <span className="flex items-center gap-2 rounded-full border border-signal/40 bg-signal/15 px-3 py-1.5">
+                    <span className="size-2 animate-signal-pulse rounded-full bg-signal-bright" />
+                    <span className="text-[0.72rem] text-chalk">
+                      {recorders.length === 1
+                        ? `${recorders[0]!.name} is recording`
+                        : `${recorders.length} recording`}
+                    </span>
                   </span>
-                </span>
-              )}
-            </div>
-          )}
-        </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {showLyrics && (
@@ -306,13 +259,13 @@ export function NowPlaying({
             <LyricsPanel
               lyrics={lyrics}
               loading={lyricsLoading}
-              onSeek={(seconds) => send('music:control', { action: 'seek', position: seconds })}
+              onSeek={(seconds) => seekTo(seconds)}
             />
           </div>
         )}
       </div>
 
-      <div className="flex shrink-0 flex-col items-center gap-4 px-6 pb-6">
+      <div className="flex shrink-0 flex-col items-center gap-4 px-6 pb-7">
         {(error ?? singalong.error) && (
           <p
             role="alert"
@@ -332,29 +285,26 @@ export function NowPlaying({
           </button>
         )}
 
-        <div className="w-full max-w-2xl">
+        <div className="w-full max-w-md">
           <MusicControls
             snapshot={snapshot}
             position={position}
             duration={duration}
-            queueCount={queue.length}
-            queueOpen={queueOpen}
+            shuffle={shuffle}
+            repeat={repeat}
             volume={volume}
-            singing={singalong.singing}
-            recording={singalong.recording}
             onPlayPause={() =>
               send('music:control', {
                 action: snapshot.playing ? 'pause' : 'play',
                 position: handle ? handle.getPosition() : undefined,
               })
             }
-            onSeek={(seconds) => send('music:control', { action: 'seek', position: seconds })}
-            onNext={() => send('music:next', { seq: snapshot.seq })}
-            onPrevious={() => send('music:previous', { seq: snapshot.seq })}
+            onSeek={(seconds) => seekTo(seconds)}
+            onNext={next}
+            onPrevious={previous}
+            onToggleShuffle={() => setShuffle(!shuffle)}
+            onToggleRepeat={() => setRepeat(!repeat)}
             onVolume={setVolume}
-            onToggleQueue={onOpenQueue}
-            onToggleSinging={singalong.toggleSinging}
-            onToggleRecording={singalong.toggleRecording}
             disabled={false}
           />
         </div>
