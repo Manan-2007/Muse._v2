@@ -17,6 +17,8 @@ export type RoomWithMembers = {
   type: string
   /** open | private — see ROOM_VISIBILITIES. */
   visibility: string
+  /** True for the user's single-person "just listen" room. */
+  personal: boolean
   createdAt: Date
   ownerId: string
   members: {
@@ -33,6 +35,7 @@ export function createRoom(data: {
   visibility: string
   slug: string
   ownerId: string
+  personal?: boolean
 }): Promise<RoomWithMembers> {
   return prisma.room.create({
     data: {
@@ -40,6 +43,14 @@ export function createRoom(data: {
       // The creator is a member from the moment the room exists.
       members: { create: { userId: data.ownerId, role: 'owner' } },
     },
+    include: { members: memberSelect },
+  })
+}
+
+/** The user's single personal room, or null if they have not listened solo yet. */
+export function findPersonalRoom(userId: string): Promise<RoomWithMembers | null> {
+  return prisma.room.findFirst({
+    where: { ownerId: userId, personal: true },
     include: { members: memberSelect },
   })
 }
@@ -56,7 +67,9 @@ export function findRoomBySlug(slug: string): Promise<RoomWithMembers | null> {
 /** Rooms the user belongs to, most recently active first. */
 export async function findRoomsForUser(userId: string): Promise<RoomWithMembers[]> {
   const memberships = await prisma.membership.findMany({
-    where: { userId },
+    /* The personal room is never a room you "belong to" in the list sense — it
+       is the solo player, reached by its own door. */
+    where: { userId, room: { personal: false } },
     orderBy: { lastSeen: 'desc' },
     select: { room: { include: { members: memberSelect } } },
   })
@@ -80,6 +93,7 @@ export async function findRoomsForUser(userId: string): Promise<RoomWithMembers[
 export function findDiscoverableRooms(userId: string, limit = 60): Promise<RoomWithMembers[]> {
   return prisma.room.findMany({
     where: {
+      personal: false,
       OR: [{ visibility: 'open' }, { members: { some: { userId } } }],
     },
     orderBy: { createdAt: 'desc' },

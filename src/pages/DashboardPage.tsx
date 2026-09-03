@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { AnimatePresence, motion } from 'framer-motion'
-import { DoorOpen, LogOut, MessagesSquare, Plus, Users } from 'lucide-react'
+import { DoorOpen, Headphones, LogOut, MessagesSquare, Plus, Users } from 'lucide-react'
 
 import { useAuth } from '@/features/auth/AuthContext'
 import { ACTIVITIES, type ActivityId } from '@/features/dashboard/hub/activities'
@@ -28,6 +28,7 @@ import { useWatchPulse } from '@/features/watch/useWatchPulse'
 import { WatchInvite } from '@/features/watch/WatchInvite'
 import { WatchStage } from '@/features/watch/WatchStage'
 import { CreateRoomForm } from '@/features/dashboard/components/CreateRoomForm'
+import { fetchPersonalRoom, fetchRoom, type Room } from '@/features/rooms/api'
 import { usePresence, type Present } from '@/features/rooms/usePresence'
 import { usePresenceWatch } from '@/features/rooms/usePresenceWatch'
 import { useRooms } from '@/features/rooms/useRooms'
@@ -282,13 +283,57 @@ export function DashboardPage() {
     }
   }, [])
 
-  const activeRoom = activeRoomId ? rooms.find((room) => room.id === activeRoomId) : undefined
+  /*
+   * A room held outside the list.
+   *
+   * The personal (solo) room is deliberately absent from `rooms`, and a
+   * deep-linked or freshly opened room may not be in it yet either. This holds
+   * whichever room is active but unlisted, so the rest of the page resolves it
+   * the same as any other.
+   */
+  const [detachedRoom, setDetachedRoom] = useState<Room | null>(null)
 
-  /* The room vanishing under you — deleted, or membership revoked — should put
-     you back in the solo hub rather than leave a dangling id. */
+  const activeRoom = activeRoomId
+    ? (rooms.find((room) => room.id === activeRoomId) ??
+      (detachedRoom?.id === activeRoomId ? detachedRoom : undefined))
+    : undefined
+
+  /*
+   * Resolve an active room that is not in the list, and bail on one that has
+   * genuinely gone. Fetching first is what lets the solo room — which is never
+   * listed — survive a refresh instead of bouncing you back to the hub; a room
+   * that was deleted or that you were removed from answers 404/403 and clears.
+   */
   useEffect(() => {
-    if (activeRoomId && !loading && !activeRoom) setActiveRoomId(null)
+    if (!activeRoomId || loading || activeRoom) return
+    let cancelled = false
+    fetchRoom(activeRoomId)
+      .then((room) => {
+        if (!cancelled) setDetachedRoom(room)
+      })
+      .catch(() => {
+        if (!cancelled) setActiveRoomId(null)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [activeRoomId, activeRoom, loading, setActiveRoomId])
+
+  /* Open the solo player: find-or-create the personal room, then walk straight
+     into its Listen stage in a single URL write. */
+  const openSolo = useCallback(async () => {
+    const room = await fetchPersonalRoom()
+    setDetachedRoom(room)
+    setParams(
+      (previous) => {
+        const next = new URLSearchParams(previous)
+        next.set('room', room.id)
+        next.set('activity', 'music')
+        return next
+      },
+      { replace: false },
+    )
+  }, [setParams])
 
   /*
    * Who is in the room right now, as a small set of faces — no 3D characters,
@@ -328,6 +373,13 @@ export function DashboardPage() {
         },
       }))
     : [
+        {
+          key: 'listen',
+          label: 'Listen',
+          hint: 'Just you and the music',
+          icon: Headphones,
+          onClick: () => void openSolo(),
+        },
         {
           key: 'create',
           label: 'Create Room',

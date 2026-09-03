@@ -17,6 +17,8 @@ export type Room = {
   type: string
   /** `open` is listed on Discover; `private` is reachable only by its code. */
   visibility: RoomVisibility
+  /** True for the solo listening room — never shown in room lists. */
+  personal?: boolean
   createdAt: string
   ownerId: string
   members: RoomMember[]
@@ -34,6 +36,11 @@ export function createRoom(input: { name: string; type: string; visibility: Room
 
 export function fetchRoom(id: string) {
   return api.get<{ room: Room }>(`/rooms/${id}`).then((r) => r.room)
+}
+
+/** The user's solo listening room, created on first request. */
+export function fetchPersonalRoom() {
+  return api.get<{ room: Room }>('/rooms/personal').then((r) => r.room)
 }
 
 export type DiscoverableRoom = {

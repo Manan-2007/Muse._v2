@@ -33,6 +33,11 @@ export async function discover(req: Request, res: Response) {
   res.json({ rooms: await roomService.discoverRooms(req.userId!) })
 }
 
+/** The solo listening room, made on first ask. See the service note. */
+export async function personal(req: Request, res: Response) {
+  res.json({ room: await roomService.getOrCreatePersonalRoom(req.userId!) })
+}
+
 export async function show(req: Request, res: Response) {
   const room = await roomService.getRoom(req.userId!, req.params.id!)
   res.json({ room })

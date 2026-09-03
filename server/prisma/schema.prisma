@@ -52,6 +52,12 @@ model Room {
   /// been listed and is not is a moment's confusion, where a room that should
   /// have been shut and was listed to everybody is the actual harm.
   visibility String   @default("private")
+  /// A private, single-person room that backs "just listen" — solo playback
+  /// without picking or sharing a room. One per user, created on demand, and
+  /// kept out of every room list and Discover so it never reads as a place to
+  /// join. Everything else (queue, playlists, likes) works exactly as a shared
+  /// room's does, which is the whole reason it is a room and not a special case.
+  personal   Boolean  @default(false)
   createdAt  DateTime @default(now())
 
   ownerId   String

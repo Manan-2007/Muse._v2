@@ -13,6 +13,7 @@ export function serialiseRoom(room: RoomWithMembers) {
     name: room.name,
     type: room.type,
     visibility: room.visibility,
+    personal: room.personal,
     createdAt: room.createdAt,
     ownerId: room.ownerId,
     members: room.members.map((member) => ({
@@ -64,6 +65,29 @@ export async function createRoom(
     type: input.type,
     visibility: input.visibility,
     slug: slugify(input.name),
+    ownerId: userId,
+  })
+  return serialiseRoom(room)
+}
+
+/**
+ * The user's personal listening room, created the first time they ask for it.
+ *
+ * This is what "just listen" opens: a private room of one, so all of the music
+ * machinery — the synced session, the queue, playlists and likes — works
+ * unchanged, while the person never had to pick or share a room. Kept out of
+ * every list and Discover by the `personal` flag.
+ */
+export async function getOrCreatePersonalRoom(userId: string) {
+  const existing = await roomModel.findPersonalRoom(userId)
+  if (existing) return serialiseRoom(existing)
+
+  const room = await roomModel.createRoom({
+    name: 'Your music',
+    type: 'friends',
+    visibility: 'private',
+    personal: true,
+    slug: slugify(`solo ${userId.slice(-6)}`),
     ownerId: userId,
   })
   return serialiseRoom(room)
