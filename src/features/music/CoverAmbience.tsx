@@ -15,9 +15,20 @@ import type { CoverPalette } from '@/features/music/useCoverPalette'
  */
 export function CoverAmbience({
   palette,
+  artwork,
   translucent = false,
 }: {
   palette: CoverPalette | null
+  /**
+   * The current cover, painted blurred and full-bleed under the blooms.
+   *
+   * Muse._v1's signature: the page dresses itself in the actual record, not
+   * only in a colour lifted from it. Blurred hard and darkened so it reads as
+   * atmosphere rather than a second copy of the sleeve, and so white text over
+   * it stays legible whatever the artwork is. Absent for a track with no cover,
+   * where the sampled-colour blooms below carry the page on their own.
+   */
+  artwork?: string | null
   /**
    * Let the room behind show through, blurred.
    *
@@ -48,6 +59,17 @@ export function CoverAmbience({
           : 'bg-void',
       )}
     >
+      {/* The record itself, blurred into the wall behind it — V1's move. Sits
+          under the colour blooms so the two read as one field of light. */}
+      {artwork && (
+        <div
+          className={cn(
+            'absolute inset-0 scale-125 bg-cover bg-center',
+            translucent ? 'opacity-25 blur-[72px]' : 'opacity-55 blur-[56px]',
+          )}
+          style={{ backgroundImage: `url("${artwork}")` }}
+        />
+      )}
       <div
         className={cn('absolute -inset-[30%] blur-[80px]', translucent ? 'opacity-45' : 'opacity-90')}
         style={{
