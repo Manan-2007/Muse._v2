@@ -74,8 +74,10 @@ server/src/         Express + Socket.io API
   services/         the real work — rooms, music, lyrics, sync
   sockets/          one gateway per live feature, all on one connection
   models/           Prisma access
-Reference projects/ Muse._v1 + Huddle — read-only, kept for salvage
 ```
+
+> The original `Muse._v1` and `Huddle` reference projects are kept **outside**
+> this repo (one level up), read-only, so they're never pushed with the app.
 
 Everything live rides **one** socket connection — presence, chat, the call's
 signalling, and music. One connection, one handshake, membership checked the

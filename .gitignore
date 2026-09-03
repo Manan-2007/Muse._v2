@@ -38,9 +38,3 @@ server/prisma/*.db-journal
 
 
 
-
-
-# Reference projects — Muse._v1 + Huddle, kept read-only for salvage, not part of the app
-Reference projects/
-
-# Seeded starter audio lives in server/uploads (already ignored above)
