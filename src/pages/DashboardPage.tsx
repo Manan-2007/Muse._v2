@@ -21,6 +21,7 @@ import {
   LogOut,
   Menu,
   MessagesSquare,
+  MonitorUp,
   Play,
   Search as SearchIcon,
   Users,
@@ -505,6 +506,10 @@ export function DashboardPage() {
                         onListen={goSearch}
                         onWatch={() => setActivity('watch')}
                         onChat={() => setSideOpen(true)}
+                        onScreenShare={() => {
+                          setSideOpen(true)
+                          if (call.status !== 'live') void call.join()
+                        }}
                         onLeave={() => setActiveRoomId(null)}
                         onCreate={() => setPanel('create')}
                         onJoin={async (code) => {
@@ -931,6 +936,7 @@ function RoomsContent({
   onListen,
   onWatch,
   onChat,
+  onScreenShare,
   onLeave,
   onCreate,
   onJoin,
@@ -946,6 +952,7 @@ function RoomsContent({
   onListen: () => void
   onWatch: () => void
   onChat: () => void
+  onScreenShare: () => void
   onLeave: () => void
   onCreate: () => void
   onJoin: (code: string) => Promise<Room>
@@ -1098,13 +1105,24 @@ function RoomsContent({
           <p className="px-2 pb-1 pt-1 text-[0.66rem] uppercase tracking-[0.18em] text-dusk">
             Channels
           </p>
-          <ChannelRow icon={Disc3} name="Listen" hint="Shared queue" onClick={onListen} />
+          <ChannelRow
+            icon={Disc3}
+            name="Listen"
+            hint="Shared queue — anyone here can add"
+            onClick={onListen}
+          />
           <ChannelRow
             icon={Clapperboard}
             name="Watch"
-            hint={watchViewers > 0 ? `${watchViewers} watching` : 'Together, in sync'}
+            hint={watchViewers > 0 ? `${watchViewers} watching` : 'YouTube, together and in sync'}
             live={watchViewers > 0}
             onClick={onWatch}
+          />
+          <ChannelRow
+            icon={MonitorUp}
+            name="Screen share"
+            hint="Show your screen to the room"
+            onClick={onScreenShare}
           />
           <ChannelRow icon={MessagesSquare} name="Chat" hint="Talk to the room" onClick={onChat} />
 
