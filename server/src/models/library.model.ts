@@ -183,33 +183,31 @@ export async function likedKeys(roomId: string, userId: string) {
 
 /* ── Suggestions ───────────────────────────────────────────────────────── */
 
+/** Record that a track actually started playing in a room. */
+export function recordPlay(roomId: string, userId: string | null, track: TrackInput) {
+  return prisma.playHistory.create({
+    data: { roomId, userId, ...normalise(track) },
+  })
+}
+
 /**
- * What the room has been playing, most recent first, de-duplicated.
+ * What the room has actually played, most recent first, de-duplicated.
  *
- * The honest basis for "suggested": this room's own history, not a model of
- * anyone's taste. Everything in the queue and every playlist has been chosen
- * by someone here, which makes it a better guess than nothing and an honest
- * one to label.
+ * Reads real play history — songs the room loaded or advanced to — not the
+ * queue or playlists. A brand-new account that only has a starter mix *queued*
+ * has therefore played nothing, and this is honestly empty until it does.
  */
 export async function recentlyPlayed(roomId: string, limit = 40) {
-  const [queued, playlisted] = await Promise.all([
-    prisma.trackItem.findMany({
-      where: { roomId },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      select: { createdAt: true, ...trackFields },
-    }),
-    prisma.playlistTrack.findMany({
-      where: { playlist: { roomId } },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      select: { createdAt: true, ...trackFields },
-    }),
-  ])
+  /* Over-fetch, since consecutive plays of one song collapse to a single card. */
+  const rows = await prisma.playHistory.findMany({
+    where: { roomId },
+    orderBy: { playedAt: 'desc' },
+    take: limit * 4,
+    select: { playedAt: true, ...trackFields },
+  })
 
   const seen = new Set<string>()
-  return [...queued, ...playlisted]
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+  return rows
     .filter((track) => {
       const key = `${track.source}:${track.ref}`
       if (seen.has(key)) return false

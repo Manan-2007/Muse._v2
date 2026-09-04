@@ -81,6 +81,7 @@ model Room {
   playlists Playlist[]
   likes     LikedTrack[]
   messages  Message[]
+  plays     PlayHistory[]
 
   subjects   Subject[]
   resources  Resource[]
@@ -208,6 +209,29 @@ model Message {
   author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([roomId, createdAt])
+}
+
+/// A song that actually played in a room — recorded when the room loads or
+/// advances to it, distinct from the queue (what will play) and playlists
+/// (what was saved). The honest basis for "recently played", and the seed for
+/// any future taste-based recommendation.
+model PlayHistory {
+  id       String   @id @default(cuid())
+  source   String
+  ref      String
+  title    String
+  artist   String?
+  album    String?
+  artwork  String?
+  duration Int?
+  /// Who put it on. A plain id, not a relation — a play outlives nothing.
+  userId   String?
+  playedAt DateTime @default(now())
+
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, playedAt])
 }
 
 /// The room's watch queue. Persisted, unlike playback position — what you lined

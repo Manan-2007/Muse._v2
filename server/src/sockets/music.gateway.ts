@@ -1,5 +1,6 @@
 import type { Server, Socket } from 'socket.io'
 
+import * as libraryModel from '../models/library.model.js'
 import * as trackModel from '../models/track.model.js'
 import * as music from '../services/music.service.js'
 import { assertMembership } from '../services/room.service.js'
@@ -202,10 +203,14 @@ export function attachMusicGateway(io: Server) {
       const row = await trackModel.findTrack(roomId, trackId)
       if (!row) return
 
+      const track = toTrack(row)
       io.to(stageRoom(roomId)).emit(
         'music:state',
-        music.apply(roomId, self, { action: 'load', track: toTrack(row) }),
+        music.apply(roomId, self, { action: 'load', track }),
       )
+      /* Putting a song on is what "played" means — recorded for real, so
+         "recently played" reflects listening rather than what was queued. */
+      void libraryModel.recordPlay(roomId, self.id, track).catch(() => undefined)
     })
 
     /**
@@ -245,10 +250,12 @@ export function attachMusicGateway(io: Server) {
           : await trackModel.previousTrack(roomId, current.track?.id ?? null)
 
       /* Running off the end stops the room rather than looping it. */
+      const track = row ? toTrack(row) : null
       io.to(stageRoom(roomId)).emit(
         'music:state',
-        music.apply(roomId, self, { action: 'advance', track: row ? toTrack(row) : null }),
+        music.apply(roomId, self, { action: 'advance', track }),
       )
+      if (track) void libraryModel.recordPlay(roomId, self.id, track).catch(() => undefined)
     }
 
     socket.on('music:ended', (raw: unknown) => void step(raw, 'next'))

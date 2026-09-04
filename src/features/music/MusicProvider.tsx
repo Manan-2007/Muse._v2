@@ -348,6 +348,13 @@ export function MusicProvider({
   useEffect(() => {
     if (track?.artist) lastArtist.current = track.artist
   }, [track?.artist])
+  /* Forgotten when the room changes. Otherwise a song you played on your own
+     seeds the continuation for the next room you walk into — which is why
+     creating a room would spontaneously start "more from <that artist>". A
+     freshly entered room continues nothing until it has played something. */
+  useEffect(() => {
+    lastArtist.current = null
+  }, [roomId])
 
   const onDuration = useCallback(
     (seconds: number) => {
