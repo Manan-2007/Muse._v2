@@ -1,4 +1,4 @@
-import { Mic, MicOff, PhoneOff, Video, VideoOff } from 'lucide-react'
+import { Mic, MicOff, PhoneOff, ScreenShare, ScreenShareOff, Video, VideoOff } from 'lucide-react'
 
 import { CallTile } from '@/features/room-panel/CallTile'
 import type { useMeshCall } from '@/features/room-panel/useMeshCall'
@@ -115,7 +115,8 @@ export function CallSection({
           stream={call.localStream}
           name={selfName}
           muted={call.muted}
-          cameraOff={call.cameraOff || !call.hasCamera}
+          cameraOff={call.sharing ? false : call.cameraOff || !call.hasCamera}
+          sharing={call.sharing}
           isSelf
           poppedOut={poppedOut === 'self'}
           onPopOut={() => onPopOut('self')}
@@ -127,6 +128,7 @@ export function CallSection({
             name={peer.name}
             muted={peer.muted}
             cameraOff={peer.cameraOff}
+            sharing={peer.sharing}
             failed={peer.failed}
             poppedOut={poppedOut === peer.socketId}
             onPopOut={() => onPopOut(peer.socketId)}
@@ -168,6 +170,29 @@ export function CallSection({
             <Video aria-hidden className="size-4" />
           )}
         </ControlButton>
+
+        {/* Screen share — desktop only; the button stays away where the browser
+            cannot offer it rather than failing on tap. */}
+        {call.canShareScreen && (
+          <button
+            type="button"
+            onClick={call.toggleScreenShare}
+            aria-label={call.sharing ? 'Stop sharing your screen' : 'Share your screen'}
+            aria-pressed={call.sharing}
+            className={cn(
+              'grid size-9 place-items-center rounded-full outline-none transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal',
+              call.sharing
+                ? 'bg-signal/20 text-signal-bright ring-1 ring-inset ring-signal/40 hover:bg-signal/30'
+                : 'bg-white/[0.08] text-chalk ring-1 ring-inset ring-white/15 hover:bg-white/[0.14]',
+            )}
+          >
+            {call.sharing ? (
+              <ScreenShareOff aria-hidden className="size-4" />
+            ) : (
+              <ScreenShare aria-hidden className="size-4" />
+            )}
+          </button>
+        )}
 
         <ControlButton on danger label="Leave the call" onClick={call.leave}>
           <PhoneOff aria-hidden className="size-4" />

@@ -78,6 +78,8 @@ export type CallPeer = {
   name: string
   muted: boolean
   cameraOff: boolean
+  /** True while this peer is sending their screen rather than a camera. */
+  sharing: boolean
 }
 
 export type RemotePeer = CallPeer & {
@@ -112,6 +114,7 @@ export function useMeshCall(roomId: string | null) {
   const [peers, setPeers] = useState<Record<string, RemotePeer>>({})
   const [muted, setMuted] = useState(false)
   const [cameraOff, setCameraOff] = useState(false)
+  const [sharing, setSharing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   /** People on the call you have not joined, for the panel's badge. */
   const [othersOnCall, setOthersOnCall] = useState(0)
@@ -120,6 +123,10 @@ export function useMeshCall(roomId: string | null) {
 
   const connections = useRef(new Map<string, Connection>())
   const stream = useRef<MediaStream | null>(null)
+  /** The screen track while sharing, and the camera it stands in for. */
+  const screenTrack = useRef<MediaStreamTrack | null>(null)
+  const cameraTrack = useRef<MediaStreamTrack | null>(null)
+  const sharingRef = useRef(false)
   const active = useRef(false)
   const ice = useRef<RTCIceServer[]>(STUN_ONLY)
   /** False when the server has no relay — cross-network calls cannot work. */
@@ -209,6 +216,7 @@ export function useMeshCall(roomId: string | null) {
             name: current[peerId]?.name ?? 'Someone',
             muted: current[peerId]?.muted ?? false,
             cameraOff: current[peerId]?.cameraOff ?? false,
+            sharing: current[peerId]?.sharing ?? false,
             stream: remote,
             failed: false,
           },
@@ -270,6 +278,10 @@ export function useMeshCall(roomId: string | null) {
     }
     connections.current.clear()
 
+    screenTrack.current?.stop()
+    screenTrack.current = null
+    cameraTrack.current = null
+    sharingRef.current = false
     stream.current?.getTracks().forEach((track) => track.stop())
     stream.current = null
 
@@ -278,6 +290,7 @@ export function useMeshCall(roomId: string | null) {
     setStatus('idle')
     setMuted(false)
     setCameraOff(false)
+    setSharing(false)
   }, [roomId])
 
   /**
@@ -501,8 +514,15 @@ export function useMeshCall(roomId: string | null) {
   }, [roomId])
 
   const publishState = useCallback(
-    (nextMuted: boolean, nextCameraOff: boolean) => {
-      if (roomId) getSocket().emit('call:state', { roomId, muted: nextMuted, cameraOff: nextCameraOff })
+    (nextMuted: boolean, nextCameraOff: boolean, nextSharing = sharingRef.current) => {
+      if (roomId) {
+        getSocket().emit('call:state', {
+          roomId,
+          muted: nextMuted,
+          cameraOff: nextCameraOff,
+          sharing: nextSharing,
+        })
+      }
     },
     [roomId],
   )
@@ -528,6 +548,90 @@ export function useMeshCall(roomId: string | null) {
   }, [muted, cameraOff, publishState])
 
   const hasCamera = (localStream?.getVideoTracks().length ?? 0) > 0
+
+  /* Whether this browser can even offer a screen — getDisplayMedia is desktop
+     only, absent on iOS Safari and most mobile browsers. */
+  const canShareScreen =
+    typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getDisplayMedia)
+
+  /**
+   * Send the screen instead of the camera.
+   *
+   * `replaceTrack` swaps what each existing video sender transmits without a
+   * renegotiation, so peers see the screen appear in place of the face with no
+   * reconnect. Audio-only callers have no video sender yet, so the track is
+   * added, which does renegotiate — handled by perfect negotiation like any
+   * other change. The camera track is kept (not stopped) so stopping the share
+   * puts the face straight back.
+   */
+  const stopScreenShare = useCallback(() => {
+    const local = stream.current
+    const screen = screenTrack.current
+    if (screen) {
+      const cam = cameraTrack.current
+      for (const [, entry] of connections.current) {
+        const sender = entry.pc.getSenders().find((s) => s.track === screen)
+        if (sender) void sender.replaceTrack(cam ?? null).catch(() => undefined)
+      }
+      screen.stop()
+      if (local) {
+        local.removeTrack(screen)
+        if (cam) {
+          cam.enabled = !cameraOff
+          local.addTrack(cam)
+        }
+        setLocalStream(new MediaStream(local.getTracks()))
+      }
+    }
+    screenTrack.current = null
+    cameraTrack.current = null
+    sharingRef.current = false
+    setSharing(false)
+    publishState(muted, cameraOff, false)
+  }, [muted, cameraOff, publishState])
+
+  const startScreenShare = useCallback(async () => {
+    if (!active.current || !stream.current || sharingRef.current) return
+
+    let display: MediaStream
+    try {
+      display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+    } catch {
+      /* The picker was dismissed — not an error, just no share. */
+      return
+    }
+
+    const screen = display.getVideoTracks()[0]
+    if (!screen) return
+
+    const local = stream.current
+    const cam = local.getVideoTracks()[0] ?? null
+    cameraTrack.current = cam
+    screenTrack.current = screen
+
+    for (const [, entry] of connections.current) {
+      const sender = entry.pc.getSenders().find((s) => s.track?.kind === 'video')
+      if (sender) void sender.replaceTrack(screen).catch(() => undefined)
+      else entry.pc.addTrack(screen, local)
+    }
+
+    if (cam) local.removeTrack(cam)
+    local.addTrack(screen)
+    setLocalStream(new MediaStream(local.getTracks()))
+
+    sharingRef.current = true
+    setSharing(true)
+    publishState(muted, false, true)
+
+    /* The browser's own "Stop sharing" bar ends the track — mirror that back
+       into our state rather than leaving a share nobody is sending. */
+    screen.onended = () => stopScreenShare()
+  }, [muted, publishState, stopScreenShare])
+
+  const toggleScreenShare = useCallback(() => {
+    if (sharingRef.current) stopScreenShare()
+    else void startScreenShare()
+  }, [startScreenShare, stopScreenShare])
 
   /*
    * Your own level, read off the stream actually being sent.
@@ -591,11 +695,14 @@ export function useMeshCall(roomId: string | null) {
     dismissInvite: () => setInvite(null),
     muted,
     cameraOff,
+    sharing,
+    canShareScreen,
     hasCamera,
     micLevel,
     join,
     leave,
     toggleMute,
     toggleCamera,
+    toggleScreenShare,
   }
 }

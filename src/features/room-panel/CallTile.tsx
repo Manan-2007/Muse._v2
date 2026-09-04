@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { MicOff, PictureInPicture2, VideoOff, WifiOff } from 'lucide-react'
+import { MicOff, MonitorUp, PictureInPicture2, VideoOff, WifiOff } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
@@ -14,6 +14,7 @@ export function CallTile({
   name,
   muted,
   cameraOff,
+  sharing = false,
   failed = false,
   isSelf = false,
   poppedOut = false,
@@ -23,6 +24,8 @@ export function CallTile({
   name: string
   muted: boolean
   cameraOff: boolean
+  /** This tile is a shared screen, not a face — don't mirror it or crop it. */
+  sharing?: boolean
   failed?: boolean
   isSelf?: boolean
   /** This face is currently in the floating window, so the slot stands empty. */
@@ -48,10 +51,13 @@ export function CallTile({
         /* Never play your own audio back — that is what causes the howl. */
         muted={isSelf}
         className={cn(
-          'size-full object-cover',
+          'size-full',
+          /* A shared screen is shown whole, never cropped or mirrored — text on
+             it has to stay readable and the right way round. */
+          sharing ? 'bg-black object-contain' : 'object-cover',
           /* Mirrored, because a self-view that moves the wrong way is
-             disorienting. Remote faces are left as they are. */
-          isSelf && '-scale-x-100',
+             disorienting. Remote faces are left as they are; screens never. */
+          isSelf && !sharing && '-scale-x-100',
           !live && 'invisible',
         )}
       />
@@ -97,8 +103,11 @@ export function CallTile({
         <span className="min-w-0 flex-1 truncate text-[0.68rem] font-medium text-chalk">
           {isSelf ? 'You' : name}
         </span>
+        {sharing && (
+          <MonitorUp aria-label="Sharing screen" className="size-3 shrink-0 text-signal-bright" />
+        )}
         {muted && <MicOff aria-label="Muted" className="size-3 shrink-0 text-signal-bright" />}
-        {cameraOff && !failed && (
+        {cameraOff && !sharing && !failed && (
           <VideoOff aria-label="Camera off" className="size-3 shrink-0 text-mist" />
         )}
       </div>

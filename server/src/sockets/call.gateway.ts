@@ -20,7 +20,15 @@ const MAX_PEERS = 8
 
 const callRoom = (roomId: string) => `call:${roomId}`
 
-type Peer = { socketId: string; userId: string; name: string; muted: boolean; cameraOff: boolean }
+type Peer = {
+  socketId: string
+  userId: string
+  name: string
+  muted: boolean
+  cameraOff: boolean
+  /** True while this peer is sending their screen instead of a camera. */
+  sharing: boolean
+}
 
 /** roomId → socketId → peer. Keyed by socket, because two tabs are two peers. */
 const calls = new Map<string, Map<string, Peer>>()
@@ -91,6 +99,7 @@ export function attachCallGateway(io: Server) {
         name: self.name,
         muted: false,
         cameraOff: false,
+        sharing: false,
       })
       joined.add(roomId)
       await socket.join(callRoom(roomId))
@@ -130,7 +139,12 @@ export function attachCallGateway(io: Server) {
     })
 
     socket.on('call:state', async (raw: unknown) => {
-      const body = (raw ?? {}) as { roomId?: unknown; muted?: unknown; cameraOff?: unknown }
+      const body = (raw ?? {}) as {
+        roomId?: unknown
+        muted?: unknown
+        cameraOff?: unknown
+        sharing?: unknown
+      }
       const roomId = await may(body.roomId)
       if (!roomId) return
 
@@ -139,6 +153,7 @@ export function attachCallGateway(io: Server) {
 
       peer.muted = body.muted === true
       peer.cameraOff = body.cameraOff === true
+      peer.sharing = body.sharing === true
       roster(roomId)
     })
 
