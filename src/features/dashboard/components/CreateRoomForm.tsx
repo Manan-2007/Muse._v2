@@ -3,7 +3,6 @@ import { Globe, Lock } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import type { Room, RoomVisibility } from '@/features/rooms/api'
-import { ROOM_TYPE_OPTIONS, roomStyle } from '@/features/rooms/roomStyle'
 import { cn } from '@/lib/utils'
 
 const VISIBILITY_OPTIONS = [
@@ -27,7 +26,6 @@ type CreateRoomFormProps = {
 
 export function CreateRoomForm({ onCreate }: CreateRoomFormProps) {
   const [name, setName] = useState('')
-  const [type, setType] = useState<string>('friends')
   /* Closed unless it is chosen otherwise — the safe direction for a default. */
   const [visibility, setVisibility] = useState<RoomVisibility>('private')
   const [busy, setBusy] = useState(false)
@@ -40,7 +38,9 @@ export function CreateRoomForm({ onCreate }: CreateRoomFormProps) {
     setBusy(true)
     setError(null)
     try {
-      await onCreate({ name: name.trim(), type, visibility })
+      /* No "type" any more — a room is a room. A neutral value is kept so the
+         column that stores it never sees an empty string. */
+      await onCreate({ name: name.trim(), type: 'listening', visibility })
       setName('')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not create the room')
@@ -50,57 +50,14 @@ export function CreateRoomForm({ onCreate }: CreateRoomFormProps) {
   }
 
   return (
-    /*
-     * No heading and no panel of its own.
-     *
-     * This is only ever rendered inside the hub drawer, which already draws
-     * the glass, the padding, and a header carrying this exact title — so
-     * repeating them stacked the same sentence twice down the screen and put
-     * a card inside a card. Obvious on a phone, where the two sat directly on
-     * top of each other with nothing between them.
-     */
     <form onSubmit={handleSubmit}>
-      <p className="text-[0.9rem] leading-relaxed text-mist">
-        Pick a type and Muse. sets the mood. You can change it later.
-      </p>
-
-      <fieldset className="mt-6">
-        <legend className="sr-only">Room type</legend>
-        <div className="flex flex-wrap gap-2">
-          {ROOM_TYPE_OPTIONS.map((option) => {
-            const art = roomStyle(option.value)
-            const selected = type === option.value
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setType(option.value)}
-                aria-pressed={selected}
-                className={cn(
-                  'flex items-center gap-2 rounded-full border px-3.5 py-2 text-[0.82rem] transition-all duration-300',
-                  selected
-                    ? 'border-signal/60 bg-white/[0.07] text-chalk'
-                    : 'border-white/[0.08] bg-white/[0.02] text-mist hover:border-white/20 hover:text-chalk',
-                )}
-              >
-                <span
-                  className="size-3 rounded-full"
-                  style={{ backgroundImage: `linear-gradient(150deg, ${art.glow}, ${art.from})` }}
-                />
-                {option.label}
-              </button>
-            )
-          })}
-        </div>
-      </fieldset>
-
       {/*
         Two real options rather than a checkbox, because "Private" is not the
         absence of something — it is a working way in, by code. Each carries
         the consequence under it, so the choice can be made without having to
         already know what either word means here.
       */}
-      <fieldset className="mt-6">
+      <fieldset>
         <legend className="text-[0.78rem] uppercase tracking-[0.16em] text-dusk">
           Who can join
         </legend>

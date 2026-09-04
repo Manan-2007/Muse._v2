@@ -44,6 +44,7 @@ import { MusicBrowser, type BrowserView } from '@/features/music/MusicBrowser'
 import { MusicDock } from '@/features/music/MusicDock'
 import { FullPlayer } from '@/features/music/FullPlayer'
 import { MusicProvider } from '@/features/music/MusicProvider'
+import { PlaylistCover } from '@/features/music/PlaylistCover'
 import { useLibrary } from '@/features/music/useLibrary'
 import { CallInvite } from '@/features/room-panel/CallInvite'
 import { RoomPanel, PANEL_WIDTH_REM } from '@/features/room-panel/RoomPanel'
@@ -58,7 +59,7 @@ import { CreateRoomForm } from '@/features/dashboard/components/CreateRoomForm'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
 import { fetchPlaylists, fetchSuggestions } from '@/features/music/api'
 import type { LibraryTrack, Playlist } from '@/features/music/types'
-import { fetchPersonalRoom, fetchRoom, type Room } from '@/features/rooms/api'
+import { fetchPersonalRoom, fetchRoom, type Room, type RoomVisibility } from '@/features/rooms/api'
 import { usePresence, type Present } from '@/features/rooms/usePresence'
 import { usePresenceWatch } from '@/features/rooms/usePresenceWatch'
 import { useRooms } from '@/features/rooms/useRooms'
@@ -66,7 +67,7 @@ import { useEntrance } from '@/features/transition/EntranceContext'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
-type Panel = 'create' | 'settings'
+type Panel = 'settings'
 
 /** Which browser section backs a given shell view + library sub-section. */
 function browserViewFor(view: ShellView, section: LibrarySection): BrowserView {
@@ -404,7 +405,7 @@ export function DashboardPage() {
       onNewPlaylist={openPlaylistsSection}
       onOpenRooms={goRooms}
       onSelectRoom={enterRoom}
-      onCreateRoom={() => setPanel('create')}
+      onCreateRoom={goRooms}
       onOpenSettings={() => setPanel('settings')}
       onSignOut={() => void signOut()}
     />
@@ -519,7 +520,11 @@ export function DashboardPage() {
                           if (call.status !== 'live') void call.join()
                         }}
                         onLeave={() => setActiveRoomId(null)}
-                        onCreate={() => setPanel('create')}
+                        onCreate={async (input) => {
+                          const room = await create(input)
+                          enterRoom(room.id)
+                          return room
+                        }}
                         onJoin={async (code) => {
                           const room = await join(code)
                           enterRoom(room.id)
@@ -674,24 +679,6 @@ export function DashboardPage() {
         )}
 
         <AnimatePresence>
-          {panel === 'create' && (
-            <HubDrawer
-              key="create"
-              title="Start something new"
-              subtitle="It stays open after you close the tab."
-              onClose={() => setPanel(null)}
-            >
-              <CreateRoomForm
-                onCreate={async (input) => {
-                  const room = await create(input)
-                  enterRoom(room.id)
-                  setPanel(null)
-                  return room
-                }}
-              />
-            </HubDrawer>
-          )}
-
           {panel === 'settings' && (
             <HubDrawer
               key="settings"
@@ -854,35 +841,24 @@ function HomeContent({
 
       {playlists.length > 0 && (
         <Shelf title="Your playlists" onMore={onPlaylists}>
-          {playlists.map((playlist) => {
-            const cover = playlist.tracks.find((t) => t.artwork)?.artwork ?? null
-            return (
-              <button
-                key={playlist.id}
-                type="button"
-                onClick={onPlaylists}
-                className="group flex w-36 shrink-0 flex-col gap-2 rounded-lg text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
-              >
-                <span className="relative aspect-square overflow-hidden rounded-lg bg-gradient-to-br from-signal/30 to-signal-deep/40 ring-1 ring-inset ring-white/10">
-                  {cover ? (
-                    <img
-                      src={cover}
-                      alt=""
-                      className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  ) : (
-                    <span className="grid size-full place-items-center text-chalk/80">
-                      <ListMusic aria-hidden className="size-6" />
-                    </span>
-                  )}
-                </span>
-                <span className="truncate text-[0.82rem] font-medium text-chalk">{playlist.name}</span>
-                <span className="-mt-1.5 truncate text-[0.72rem] text-dusk">
-                  {playlist.tracks.length} track{playlist.tracks.length === 1 ? '' : 's'}
-                </span>
-              </button>
-            )
-          })}
+          {playlists.map((playlist) => (
+            <button
+              key={playlist.id}
+              type="button"
+              onClick={onPlaylists}
+              className="group flex w-36 shrink-0 flex-col gap-2 rounded-lg text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+            >
+              <PlaylistCover
+                playlist={playlist}
+                className="aspect-square w-full ring-1 ring-inset ring-white/10 transition-transform duration-300 group-hover:scale-105"
+              />
+              <span className="truncate text-[0.82rem] font-medium text-chalk">{playlist.name}</span>
+              <span className="-mt-1.5 truncate text-[0.72rem] text-dusk">
+                {playlist.description ||
+                  `${playlist.tracks.length} track${playlist.tracks.length === 1 ? '' : 's'}`}
+              </span>
+            </button>
+          ))}
         </Shelf>
       )}
 
@@ -910,8 +886,8 @@ function HomeContent({
                   <Users aria-hidden className="size-6 text-chalk/80" />
                 </span>
                 <span className="truncate text-[0.85rem] font-medium text-chalk">{room.name}</span>
-                <span className="truncate text-[0.72rem] capitalize text-dusk">
-                  {room.type} · {room.members.length} member{room.members.length === 1 ? '' : 's'}
+                <span className="truncate text-[0.72rem] text-dusk">
+                  {room.members.length} member{room.members.length === 1 ? '' : 's'}
                 </span>
               </button>
             ))}
@@ -959,7 +935,7 @@ function RoomsContent({
   onChat: () => void
   onScreenShare: () => void
   onLeave: () => void
-  onCreate: () => void
+  onCreate: (input: { name: string; type: string; visibility: RoomVisibility }) => Promise<Room>
   onJoin: (code: string) => Promise<Room>
 }) {
   const [code, setCode] = useState('')
@@ -993,31 +969,56 @@ function RoomsContent({
   if (!activeRoom) {
     return (
       <div className="py-2">
-        <div className="mx-auto max-w-xl rounded-panel border border-white/10 bg-white/[0.03] p-8 text-center">
-          <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-signal/30 to-signal-deep/40 text-chalk">
+        <div className="mx-auto max-w-xl rounded-panel border border-white/10 bg-white/[0.03] p-7 sm:p-8">
+          <span className="grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-signal/30 to-signal-deep/40 text-chalk">
             <Users aria-hidden className="size-6" />
           </span>
           <h1 className="mt-5 font-display text-[clamp(1.5rem,4vw,2rem)] font-semibold tracking-[-0.02em] text-chalk">
-            Rooms are for listening together
+            What&apos;s a room?
           </h1>
-          <p className="mx-auto mt-3 max-w-md text-[0.92rem] leading-relaxed text-mist">
-            A room is like a Discord server: everyone in it hears the same song at the same moment.
-            Watch videos in sync, share your screen, chat, and hop into voice — across every device.
+          <p className="mt-3 text-[0.92rem] leading-relaxed text-mist">
+            A room is like a Discord server for listening together: everyone in it hears the same
+            song at the same second. It&apos;s where Muse. becomes social.
           </p>
 
-          <div className="mx-auto mt-6 flex max-w-sm flex-col gap-3">
-            <button
-              type="button"
-              onClick={onCreate}
-              className="w-full rounded-full bg-signal py-3 text-[0.9rem] font-semibold text-white outline-none transition-colors hover:bg-signal-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
-            >
-              Create a room
-            </button>
+          <div className="mt-5 flex flex-wrap gap-2">
+            {[
+              { icon: Disc3, label: 'Listen in sync' },
+              { icon: Clapperboard, label: 'Watch on YouTube' },
+              { icon: MonitorUp, label: 'Share your screen' },
+              { icon: MessagesSquare, label: 'Chat' },
+              { icon: Users, label: 'Hop into voice' },
+            ].map((f) => {
+              const Icon = f.icon
+              return (
+                <span
+                  key={f.label}
+                  className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[0.76rem] text-mist"
+                >
+                  <Icon aria-hidden className="size-3.5 text-signal-bright" />
+                  {f.label}
+                </span>
+              )
+            })}
+          </div>
+
+          {/* Create a room, right here — no drawer sliding in from the side. */}
+          <div className="mt-7 border-t border-white/[0.07] pt-6">
+            <h2 className="pb-4 text-[0.78rem] uppercase tracking-[0.16em] text-dusk">
+              Start a room
+            </h2>
+            <CreateRoomForm onCreate={onCreate} />
+          </div>
+
+          <div className="mt-6 border-t border-white/[0.07] pt-6">
+            <h2 className="pb-3 text-[0.78rem] uppercase tracking-[0.16em] text-dusk">
+              Have a code?
+            </h2>
             <form onSubmit={submitJoin} className="flex gap-2">
               <input
                 value={code}
                 onChange={(event) => setCode(event.target.value)}
-                placeholder="Have a code? Join a room"
+                placeholder="Enter a room code to join"
                 className="h-11 min-w-0 flex-1 rounded-full border border-white/12 bg-white/[0.04] px-4 text-[0.88rem] text-chalk outline-none transition-colors placeholder:text-dusk focus:border-signal/60"
               />
               <button
