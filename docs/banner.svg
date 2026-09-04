@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="340" viewBox="0 0 1280 340" fill="none" role="img" aria-label="Muse. — Put a record on.">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="340" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0b0b0e"/>
+      <stop offset="0.55" stop-color="#0d0a0d"/>
+      <stop offset="1" stop-color="#1a0a0f"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1060 70) rotate(130) scale(360)">
+      <stop offset="0" stop-color="#fa233b" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#fa233b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(230 300) rotate(-45) scale(300)">
+      <stop offset="0" stop-color="#4b8bff" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#4b8bff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="label" cx="0.5" cy="0.4" r="0.7">
+      <stop offset="0" stop-color="#ff3b52"/>
+      <stop offset="1" stop-color="#c8102e"/>
+    </radialGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="340" rx="20" fill="url(#bg)"/>
+  <rect width="1280" height="340" rx="20" fill="url(#glow)"/>
+  <rect width="1280" height="340" rx="20" fill="url(#glow2)"/>
+
+  <!-- faint album-cover wall, top-right texture -->
+  <g opacity="0.5">
+    <rect x="965" y="-10" width="86" height="86" rx="10" fill="#241016"/>
+    <rect x="1058" y="-10" width="86" height="86" rx="10" fill="#12131c"/>
+    <rect x="1151" y="-10" width="120" height="86" rx="10" fill="#1c1414"/>
+    <rect x="1011" y="83" width="86" height="86" rx="10" fill="#2a1220"/>
+    <rect x="1104" y="83" width="86" height="86" rx="10" fill="#101319"/>
+    <rect x="1197" y="83" width="74" height="86" rx="10" fill="#231018"/>
+  </g>
+
+  <!-- vinyl record -->
+  <g transform="translate(150 170)">
+    <circle r="112" fill="#08080a"/>
+    <circle r="112" fill="none" stroke="#ffffff" stroke-opacity="0.06" stroke-width="1"/>
+    <g fill="none" stroke="#ffffff" stroke-opacity="0.06">
+      <circle r="98"/><circle r="86"/><circle r="74"/><circle r="62"/><circle r="50"/>
+    </g>
+    <circle r="112" fill="url(#sheen)"/>
+    <circle r="40" fill="url(#label)"/>
+    <circle r="40" fill="none" stroke="#000000" stroke-opacity="0.25"/>
+    <circle r="6" fill="#0b0b0e"/>
+    <circle r="6" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
+  </g>
+
+  <!-- wordmark + copy -->
+  <g font-family="'Helvetica Neue', Arial, sans-serif">
+    <text x="322" y="150" font-size="96" font-weight="800" letter-spacing="-3" fill="#f5f5f7">Muse<tspan fill="#fa233b">.</tspan></text>
+    <text x="326" y="206" font-size="34" font-weight="700" letter-spacing="-0.5" fill="#e7e7ea">Put a record on.</text>
+    <text x="327" y="248" font-size="21" font-weight="400" fill="#9a9aa2">An immersive record player, your whole library, and rooms to listen together.</text>
+    <text x="327" y="292" font-size="15" font-weight="600" letter-spacing="3" fill="#fa233b">MUSIC · TOGETHER OR ON YOUR OWN</text>
+  </g>
+</svg>
