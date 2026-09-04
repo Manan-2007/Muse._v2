@@ -1,9 +1,30 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Disc3, Home, ListMusic, LogOut, MessagesSquare, Play, Plus, Search, Users } from 'lucide-react'
+import {
+  Check,
+  Clapperboard,
+  Copy,
+  Disc3,
+  Home,
+  ListMusic,
+  LogOut,
+  MessagesSquare,
+  Play,
+  Plus,
+  Search,
+  Users,
+} from 'lucide-react'
 
 import { useAuth } from '@/features/auth/AuthContext'
 import { BottomNav, type NavItem } from '@/components/layout/BottomNav'
@@ -28,6 +49,7 @@ import { useWatchPulse } from '@/features/watch/useWatchPulse'
 import { WatchInvite } from '@/features/watch/WatchInvite'
 import { WatchStage } from '@/features/watch/WatchStage'
 import { CreateRoomForm } from '@/features/dashboard/components/CreateRoomForm'
+import { cn } from '@/lib/utils'
 import { fetchPlaylists, fetchSuggestions } from '@/features/music/api'
 import type { LibraryTrack, Playlist } from '@/features/music/types'
 import { fetchPersonalRoom, fetchRoom, type Room } from '@/features/rooms/api'
@@ -482,7 +504,7 @@ export function DashboardPage() {
             data-lenis-prevent
             className="relative z-10 min-h-0 flex-1 overflow-y-auto px-5 pb-28 sm:px-8"
           >
-            <div className="mx-auto w-full max-w-3xl">
+            <div className={`mx-auto w-full ${tab === 'rooms' ? 'max-w-5xl' : 'max-w-3xl'}`}>
               {tab === 'home' ? (
                 <HomeContent
                   greeting={greeting}
@@ -501,15 +523,20 @@ export function DashboardPage() {
                   loading={loading}
                   activeRoom={activeRoom}
                   activeRoomId={activeRoomId}
-                  onEnter={enterRoom}
+                  present={present}
+                  roster={roster}
+                  watchViewers={watch.viewers.length}
+                  onSelectRoom={(id) => setActiveRoomId(id)}
+                  onListen={() => setActivity('music')}
+                  onWatch={() => setActivity('watch')}
+                  onChat={() => setSideOpen(true)}
+                  onLeave={() => setActiveRoomId(null)}
                   onCreate={() => setPanel('create')}
                   onJoin={async (code) => {
                     const room = await join(code)
-                    enterRoom(room.id)
+                    setActiveRoomId(room.id)
                     return room
                   }}
-                  onOpenChat={() => setSideOpen(true)}
-                  onLeave={() => setActiveRoomId(null)}
                 />
               )}
             </div>
@@ -922,91 +949,280 @@ function HomeContent({
 }
 
 /**
- * Rooms — the social half, kept to its own tab so Home stays about the music.
+ * Rooms — Discord's shape.
+ *
+ * A rail of the rooms you belong to on the left, the selected room's "channels"
+ * (Listen, Watch, Chat, Voice) in the middle, and who's here down the right.
+ * Selecting a room walks you into it — chat, the call and presence come alive —
+ * without opening a stage; the channels do that. Music-first still: the solo
+ * player is its own thing, so this tab is purely the social half.
  */
 function RoomsContent({
   rooms,
   loading,
   activeRoom,
   activeRoomId,
-  onEnter,
+  present,
+  roster,
+  watchViewers,
+  onSelectRoom,
+  onListen,
+  onWatch,
+  onChat,
+  onLeave,
   onCreate,
   onJoin,
-  onOpenChat,
-  onLeave,
 }: {
   rooms: Room[]
   loading: boolean
   activeRoom: Room | undefined
   activeRoomId: string | null
-  onEnter: (roomId: string) => void
+  present: { id: string; name: string; you: boolean }[]
+  roster: Record<string, Present[]>
+  watchViewers: number
+  onSelectRoom: (roomId: string) => void
+  onListen: () => void
+  onWatch: () => void
+  onChat: () => void
+  onLeave: () => void
   onCreate: () => void
   onJoin: (code: string) => Promise<Room>
-  onOpenChat: () => void
-  onLeave: () => void
 }) {
+  const [code, setCode] = useState('')
+  const [joining, setJoining] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const shared = activeRoom && !activeRoom.personal
+
+  const submitJoin = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!code.trim() || joining) return
+    setJoining(true)
+    try {
+      await onJoin(code.trim())
+      setCode('')
+    } catch {
+      /* The field stays, the person tries again. */
+    } finally {
+      setJoining(false)
+    }
+  }
+
+  const copyCode = () => {
+    if (!activeRoom) return
+    void navigator.clipboard?.writeText(activeRoom.slug).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
+
   return (
-    <div className="space-y-6 py-2">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="font-display text-[clamp(1.6rem,4vw,2.1rem)] font-semibold tracking-[-0.02em] text-chalk">
-          Rooms
-        </h1>
+    <div className="flex flex-col gap-3 py-2 sm:h-[calc(100svh-12rem)] sm:min-h-[26rem] sm:flex-row">
+      {/* The rooms rail — your servers. */}
+      <aside className="scrollbar-none flex shrink-0 gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.03] p-2 sm:w-[4.5rem] sm:flex-col sm:overflow-y-auto sm:overflow-x-hidden">
+        {rooms.map((room) => {
+          const online = roster[room.id]?.length ?? 0
+          const active = room.id === activeRoomId
+          return (
+            <button
+              key={room.id}
+              type="button"
+              onClick={() => onSelectRoom(room.id)}
+              title={room.name}
+              className={cn(
+                'relative grid size-12 shrink-0 place-items-center rounded-2xl font-display text-[0.95rem] font-semibold outline-none transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal',
+                active
+                  ? 'rounded-xl bg-gradient-to-br from-signal to-signal-deep text-white'
+                  : 'bg-white/[0.06] text-chalk hover:rounded-xl hover:bg-white/[0.12]',
+              )}
+            >
+              {room.name.slice(0, 1).toUpperCase()}
+              {online > 0 && (
+                <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-emerald-400 ring-2 ring-[#0d0d0f]" />
+              )}
+            </button>
+          )
+        })}
         <button
           type="button"
           onClick={onCreate}
-          className="flex items-center gap-2 rounded-full bg-chalk px-4 py-2 text-[0.85rem] font-medium text-void outline-none transition-transform hover:scale-[1.03] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+          title="New room"
+          className="grid size-12 shrink-0 place-items-center rounded-2xl border border-dashed border-white/15 text-signal-bright outline-none transition-colors hover:border-signal/50 hover:bg-signal/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
         >
-          <Plus aria-hidden className="size-4" />
-          New room
+          <Plus aria-hidden className="size-5" />
         </button>
+      </aside>
+
+      {/* The selected room's channels, or a prompt to pick one. */}
+      <div className="flex min-h-[24rem] min-w-0 flex-1 flex-col rounded-2xl border border-white/10 bg-white/[0.03]">
+        {activeRoom ? (
+          <>
+            <header className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-5 py-3.5">
+              <div className="min-w-0">
+                <h2 className="truncate font-display text-[1.1rem] font-semibold tracking-[-0.015em] text-chalk">
+                  {activeRoom.name}
+                </h2>
+                {shared ? (
+                  <button
+                    type="button"
+                    onClick={copyCode}
+                    className="mt-0.5 flex items-center gap-1.5 rounded text-[0.72rem] text-dusk outline-none transition-colors hover:text-mist focus-visible:text-mist"
+                  >
+                    <span className="font-mono">{activeRoom.slug}</span>
+                    {copied ? (
+                      <Check aria-hidden className="size-3 text-emerald-400" />
+                    ) : (
+                      <Copy aria-hidden className="size-3" />
+                    )}
+                  </button>
+                ) : (
+                  <p className="mt-0.5 text-[0.72rem] text-dusk">Your private space</p>
+                )}
+              </div>
+              {shared && (
+                <button
+                  type="button"
+                  onClick={onLeave}
+                  aria-label="Leave room"
+                  className="grid size-9 shrink-0 place-items-center rounded-full border border-white/12 text-mist outline-none transition-colors hover:border-signal/40 hover:text-signal-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+                >
+                  <LogOut aria-hidden className="size-4" />
+                </button>
+              )}
+            </header>
+
+            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
+              <p className="px-2 pb-1 pt-1 text-[0.66rem] uppercase tracking-[0.18em] text-dusk">
+                Channels
+              </p>
+              <ChannelRow icon={Disc3} name="Listen" hint="Shared queue" onClick={onListen} />
+              <ChannelRow
+                icon={Clapperboard}
+                name="Watch"
+                hint={watchViewers > 0 ? `${watchViewers} watching` : 'Together, in sync'}
+                live={watchViewers > 0}
+                onClick={onWatch}
+              />
+              <ChannelRow icon={MessagesSquare} name="Chat" hint="Talk to the room" onClick={onChat} />
+
+              <div className="flex items-center justify-between gap-2 rounded-lg px-3 py-2">
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/[0.06] text-mist">
+                    <Users aria-hidden className="size-4" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[0.9rem] font-medium text-chalk">Voice</span>
+                    <span className="block truncate text-[0.72rem] text-dusk">Hop in to talk</span>
+                  </span>
+                </span>
+                <VoiceButton roomId={activeRoomId} />
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="grid flex-1 place-items-center p-6 text-center">
+            <div className="w-full max-w-xs">
+              <span className="mx-auto grid size-12 place-items-center rounded-full bg-white/[0.06] text-mist">
+                <Users aria-hidden className="size-5" />
+              </span>
+              <h2 className="mt-4 font-display text-[1.1rem] font-semibold text-chalk">
+                Pick a room, or start one
+              </h2>
+              <p className="mt-1.5 text-[0.85rem] leading-relaxed text-mist">
+                Rooms stay in sync across every device — listen, chat, and call together.
+              </p>
+
+              <form onSubmit={submitJoin} className="mt-5 flex gap-2">
+                <input
+                  value={code}
+                  onChange={(event) => setCode(event.target.value)}
+                  placeholder="Have a code?"
+                  className="h-10 min-w-0 flex-1 rounded-full border border-white/12 bg-white/[0.04] px-4 text-[0.85rem] text-chalk outline-none transition-colors placeholder:text-dusk focus:border-signal/60"
+                />
+                <button
+                  type="submit"
+                  disabled={joining || !code.trim()}
+                  className="rounded-full bg-white/10 px-4 text-[0.82rem] font-medium text-chalk outline-none transition-colors hover:bg-white/[0.16] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal disabled:opacity-40"
+                >
+                  Join
+                </button>
+              </form>
+              <button
+                type="button"
+                onClick={onCreate}
+                className="mt-2 w-full rounded-full bg-signal py-2.5 text-[0.85rem] font-semibold text-white outline-none transition-colors hover:bg-signal-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+              >
+                Create a room
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {activeRoom && !activeRoom.personal && (
-        <div className="flex flex-wrap items-center gap-3 rounded-card border border-signal/30 bg-signal/[0.08] p-4">
-          <span className="size-2 shrink-0 animate-signal-pulse rounded-full bg-signal" />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[0.9rem] font-medium text-chalk">
-              You&apos;re in {activeRoom.name}
-            </span>
-          </span>
-          <button
-            type="button"
-            onClick={() => onEnter(activeRoom.id)}
-            className="rounded-full bg-chalk px-3.5 py-1.5 text-[0.8rem] font-medium text-void outline-none transition-transform hover:scale-[1.03] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
-          >
-            Open
-          </button>
-          <button
-            type="button"
-            onClick={onOpenChat}
-            aria-label="Chat & call"
-            className="grid size-9 place-items-center rounded-full border border-white/12 text-chalk outline-none transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
-          >
-            <MessagesSquare aria-hidden className="size-4" />
-          </button>
-          <VoiceButton roomId={activeRoomId} />
-          <button
-            type="button"
-            onClick={onLeave}
-            aria-label="Leave room"
-            className="grid size-9 place-items-center rounded-full border border-white/12 text-mist outline-none transition-colors hover:border-signal/40 hover:text-signal-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
-          >
-            <LogOut aria-hidden className="size-4" />
-          </button>
-        </div>
+      {/* Who's here. */}
+      {activeRoom && (
+        <aside className="hidden w-56 shrink-0 flex-col rounded-2xl border border-white/10 bg-white/[0.03] lg:flex">
+          <p className="border-b border-white/[0.07] px-4 py-3.5 text-[0.66rem] uppercase tracking-[0.18em] text-dusk">
+            Here — {present.length}
+          </p>
+          <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-2">
+            {present.map((member) => (
+              <div key={member.id} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
+                <span className="relative shrink-0">
+                  <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-signal to-signal-deep text-[0.7rem] font-semibold text-white">
+                    {member.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-emerald-400 ring-2 ring-[#0d0d0f]" />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[0.85rem] text-chalk">
+                  {member.name}
+                  {member.you && <span className="text-dusk"> · you</span>}
+                </span>
+                {activeRoom.ownerId === member.id && (
+                  <span className="shrink-0 text-[0.6rem] uppercase tracking-wide text-dusk">Host</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </aside>
       )}
 
-      {loading ? (
-        <div className="h-40 animate-pulse rounded-card bg-white/[0.04]" />
-      ) : (
-        <RoomList
-          rooms={rooms}
-          activeRoomId={activeRoom?.id}
-          onWalkIn={(room) => onEnter(room.id)}
-          onJoin={onJoin}
-        />
+      {loading && rooms.length === 0 && (
+        <div className="h-40 animate-pulse rounded-2xl bg-white/[0.04] sm:hidden" />
       )}
     </div>
+  )
+}
+
+/** One "channel" row in a room — an activity you tap into. */
+function ChannelRow({
+  icon: Icon,
+  name,
+  hint,
+  live = false,
+  onClick,
+}: {
+  icon: typeof Disc3
+  name: string
+  hint: string
+  live?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left outline-none transition-colors hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+    >
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/[0.06] text-mist transition-colors group-hover:text-chalk">
+        <Icon aria-hidden className="size-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[0.9rem] font-medium text-chalk">{name}</span>
+        <span className="block truncate text-[0.72rem] text-dusk">{hint}</span>
+      </span>
+      {live && <span className="size-2 shrink-0 animate-signal-pulse rounded-full bg-signal" />}
+    </button>
   )
 }
 
