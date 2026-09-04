@@ -105,6 +105,11 @@ model Room {
 model Playlist {
   id        String   @id @default(cuid())
   name      String
+  /// An optional byline the maker can add.
+  description String?
+  /// A custom cover as a data URL. Null means the cover is built from the first
+  /// few songs' artwork instead.
+  cover       String?
   createdAt DateTime @default(now())
 
   roomId      String

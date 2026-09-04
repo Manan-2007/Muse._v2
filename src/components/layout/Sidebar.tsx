@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 
 import { Wordmark } from '@/components/layout/Logo'
+import { PlaylistCover } from '@/features/music/PlaylistCover'
 import type { Playlist } from '@/features/music/types'
 import type { Room } from '@/features/rooms/api'
 import { cn } from '@/lib/utils'
@@ -168,13 +169,11 @@ export function Sidebar({
               onClick={() => onOpenPlaylist(playlist)}
               className="flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left outline-none transition-colors hover:bg-white/[0.05] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
             >
-              <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded bg-white/[0.06] text-dusk ring-1 ring-inset ring-white/10">
-                {playlist.tracks[0]?.artwork ? (
-                  <img src={playlist.tracks[0].artwork} alt="" className="size-full object-cover" />
-                ) : (
-                  <ListMusic aria-hidden className="size-3.5" />
-                )}
-              </span>
+              <PlaylistCover
+                playlist={playlist}
+                rounded="rounded"
+                className="size-8 shrink-0 ring-1 ring-inset ring-white/10"
+              />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[0.82rem] text-chalk">{playlist.name}</span>
                 <span className="block truncate text-[0.7rem] text-dusk">

@@ -46,6 +46,8 @@ function normalise(track: TrackInput) {
 const playlistSelect = {
   id: true,
   name: true,
+  description: true,
+  cover: true,
   createdAt: true,
   createdBy: { select: { id: true, name: true } },
   tracks: {
@@ -75,6 +77,31 @@ export function createPlaylist(roomId: string, createdById: string, name: string
 
 export async function deletePlaylist(roomId: string, id: string) {
   await prisma.playlist.deleteMany({ where: { id, roomId } })
+}
+
+/** Rename a playlist, set its byline, or set/clear a custom cover. */
+export async function updatePlaylist(
+  roomId: string,
+  id: string,
+  data: { name?: string; description?: string | null; cover?: string | null },
+) {
+  const playlist = await prisma.playlist.findFirst({ where: { id, roomId }, select: { id: true } })
+  if (!playlist) return null
+  await prisma.playlist.update({ where: { id }, data })
+  return findPlaylist(roomId, id)
+}
+
+/** Put a playlist's songs in the given order. Unlisted ids keep their order. */
+export async function reorderPlaylist(roomId: string, id: string, trackIds: string[]) {
+  const playlist = await prisma.playlist.findFirst({ where: { id, roomId }, select: { id: true } })
+  if (!playlist) return null
+
+  await prisma.$transaction(
+    trackIds.map((trackId, position) =>
+      prisma.playlistTrack.updateMany({ where: { id: trackId, playlistId: id }, data: { position } }),
+    ),
+  )
+  return findPlaylist(roomId, id)
 }
 
 export async function addToPlaylist(roomId: string, playlistId: string, track: TrackInput) {

@@ -186,6 +186,24 @@ export function deletePlaylist(roomId: string, playlistId: string) {
     .then((response) => response.items)
 }
 
+/** Rename a playlist, set its byline, or set/clear a custom cover. */
+export function updatePlaylist(
+  roomId: string,
+  playlistId: string,
+  data: { name?: string; description?: string | null; cover?: string | null },
+) {
+  return api
+    .patch<{ item: Playlist }>(`/rooms/${roomId}/music/playlists/${playlistId}`, data)
+    .then((response) => response.item)
+}
+
+/** Put a playlist's songs in a new order. */
+export function reorderPlaylist(roomId: string, playlistId: string, ids: string[]) {
+  return api
+    .post<{ item: Playlist }>(`/rooms/${roomId}/music/playlists/${playlistId}/reorder`, { ids })
+    .then((response) => response.item)
+}
+
 export function addToPlaylist(roomId: string, playlistId: string, track: LibraryTrack) {
   return api
     .post<{ item: Playlist }>(`/rooms/${roomId}/music/playlists/${playlistId}/tracks`, track)

@@ -23,6 +23,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import * as musicApi from '@/features/music/api'
 import { useMusic } from '@/features/music/MusicContext'
+import { PlaylistCover } from '@/features/music/PlaylistCover'
+import { PlaylistDetail } from '@/features/music/PlaylistDetail'
 import { TrackCard, TrackGrid } from '@/features/music/TrackCard'
 import { TrackRow } from '@/features/music/TrackRow'
 import type {
@@ -128,7 +130,12 @@ export function MusicBrowser({
   const [searchCards, setSearchCards] = useState<LibraryTrack[] | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [openPlaylist, setOpenPlaylist] = useState<Playlist | null>(null)
+  /* Held by id, not by value, so an open playlist stays live as the library
+     updates under it — a rename, a reorder, a removed song all reflect at once. */
+  const [openPlaylistId, setOpenPlaylistId] = useState<string | null>(null)
+  const openPlaylist = openPlaylistId
+    ? (library.playlists.find((one) => one.id === openPlaylistId) ?? null)
+    : null
   const [suggestions, setSuggestions] = useState<{
     history: LibraryTrack[]
     more: TrackSearchResult[]
@@ -185,7 +192,7 @@ export function MusicBrowser({
   /* Leaving a section closes any open playlist under it — otherwise switching
      away and back from the sidebar would land you inside the last playlist. */
   useEffect(() => {
-    setOpenPlaylist(null)
+    setOpenPlaylistId(null)
   }, [view])
 
   /* Suggestions follow whatever is on — the seed is the current artist, so the
@@ -395,7 +402,7 @@ export function MusicBrowser({
                 type="button"
                 onClick={() => {
                   setView(entry.id)
-                  setOpenPlaylist(null)
+                  setOpenPlaylistId(null)
                 }}
                 className={cn(
                   'relative flex min-h-11 shrink-0 items-center gap-2.5 rounded-full px-3.5 py-2 text-left outline-none transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal md:min-h-0 md:rounded-xl',
@@ -450,18 +457,14 @@ export function MusicBrowser({
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.3, ease: EASE }}
             >
+              {/* The open playlist draws its own header (cover, byline, edit);
+                  every other section gets the plain title + upload. */}
+              {!openPlaylist && (
               <div className="flex shrink-0 items-start justify-between gap-3 pb-3">
                 <div className="min-w-0">
                   <h2 className="font-display text-[clamp(1.5rem,3vw,2rem)] font-semibold tracking-[-0.03em] text-chalk">
-                    {openPlaylist ? openPlaylist.name : heading.label}
+                    {heading.label}
                   </h2>
-                  {openPlaylist && (
-                    <p className="mt-1 text-[0.78rem] text-dusk">
-                      {openPlaylist.tracks.length}{' '}
-                      {openPlaylist.tracks.length === 1 ? 'song' : 'songs'} · made by{' '}
-                      {openPlaylist.createdBy.name}
-                    </p>
-                  )}
                 </div>
 
                 {/* With the rail hidden, upload lives beside the section title. */}
@@ -486,6 +489,7 @@ export function MusicBrowser({
                   </button>
                 )}
               </div>
+              )}
 
               {view === 'search' && !openPlaylist && (
                 <form
@@ -536,10 +540,9 @@ export function MusicBrowser({
                   {openPlaylist ? (
                     <PlaylistDetail
                       playlist={openPlaylist}
+                      library={library}
                       rowProps={rowProps}
-                      onRemove={(trackId) =>
-                        void library.removeFromPlaylist(openPlaylist.id, trackId)
-                      }
+                      onBack={() => setOpenPlaylistId(null)}
                     />
                   ) : view === 'search' ? (
                     <SearchView cards={searchCards} rowProps={rowProps} queued={queue.length} />
@@ -548,7 +551,7 @@ export function MusicBrowser({
                   ) : view === 'playlists' ? (
                     <PlaylistsView
                       library={library}
-                      onOpen={setOpenPlaylist}
+                      onOpen={(one) => setOpenPlaylistId(one.id)}
                     />
                   ) : (
                     <SuggestedView
@@ -716,18 +719,16 @@ function PlaylistsView({
               onClick={() => onOpen(playlist)}
               className="flex min-w-0 flex-1 items-center gap-3 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
             >
-              <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-white/[0.05] text-dusk ring-1 ring-inset ring-white/10">
-                {playlist.tracks[0]?.artwork ? (
-                  <img src={playlist.tracks[0].artwork} alt="" className="size-full object-cover" />
-                ) : (
-                  <ListMusic aria-hidden className="size-4" />
-                )}
-              </span>
+              <PlaylistCover
+                playlist={playlist}
+                className="size-12 shrink-0 ring-1 ring-inset ring-white/10"
+              />
               <span className="min-w-0">
                 <span className="block truncate text-[0.88rem] text-chalk">{playlist.name}</span>
                 <span className="mt-0.5 block truncate text-[0.74rem] text-dusk">
-                  {playlist.tracks.length} {playlist.tracks.length === 1 ? 'song' : 'songs'} ·{' '}
-                  {playlist.createdBy.name}
+                  {playlist.description
+                    ? playlist.description
+                    : `${playlist.tracks.length} ${playlist.tracks.length === 1 ? 'song' : 'songs'} · ${playlist.createdBy.name}`}
                 </span>
               </span>
             </button>
@@ -747,39 +748,6 @@ function PlaylistsView({
   )
 }
 
-function PlaylistDetail({
-  playlist,
-  rowProps,
-  onRemove,
-}: {
-  playlist: Playlist
-  rowProps: RowProps
-  onRemove: (trackId: string) => void
-}) {
-  if (playlist.tracks.length === 0) {
-    return (
-      <Empty
-        icon={ListMusic}
-        title="This playlist is empty"
-        body="Add songs to it from the menu on any row in search, liked, or suggested."
-      />
-    )
-  }
-
-  return (
-    <div className="flex flex-col gap-0.5">
-      {playlist.tracks.map((track, index) => (
-        <TrackRow
-          key={track.id}
-          index={index}
-          {...rowProps(track)}
-          onRemove={() => onRemove(track.id)}
-          removeLabel="Remove from this playlist"
-        />
-      ))}
-    </div>
-  )
-}
 
 function SuggestedView({
   suggestions,

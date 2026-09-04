@@ -347,6 +347,39 @@ export async function deletePlaylist(req: Request, res: Response) {
   res.json({ items: await libraryModel.listPlaylists(roomId) })
 }
 
+const playlistUpdateBody = z.object({
+  name: z.string().trim().min(1, 'Name it something').max(120).optional(),
+  description: z.string().trim().max(300).nullable().optional(),
+  cover: z
+    .string()
+    .regex(/^data:image\//, 'That is not an image')
+    .max(1_400_000, 'That image is too large')
+    .nullable()
+    .optional(),
+})
+
+export async function updatePlaylist(req: Request, res: Response) {
+  const roomId = await gate(req)
+  const parsed = playlistUpdateBody.safeParse(req.body)
+  if (!parsed.success) {
+    throw HttpError.badRequest(parsed.error.issues[0]?.message ?? 'Could not update that')
+  }
+  const item = await libraryModel.updatePlaylist(roomId, req.params.playlistId!, parsed.data)
+  if (!item) throw HttpError.notFound('No such playlist')
+  res.json({ item })
+}
+
+const playlistReorderBody = z.object({ ids: z.array(z.string()).max(1000) })
+
+export async function reorderPlaylist(req: Request, res: Response) {
+  const roomId = await gate(req)
+  const parsed = playlistReorderBody.safeParse(req.body)
+  if (!parsed.success) throw HttpError.badRequest('Could not reorder that playlist')
+  const item = await libraryModel.reorderPlaylist(roomId, req.params.playlistId!, parsed.data.ids)
+  if (!item) throw HttpError.notFound('No such playlist')
+  res.json({ item })
+}
+
 export async function addToPlaylist(req: Request, res: Response) {
   const roomId = await gate(req)
 

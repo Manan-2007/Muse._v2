@@ -103,6 +103,10 @@ export type PlaylistTrack = LibraryTrack & { id: string; position: number }
 export type Playlist = {
   id: string
   name: string
+  /** An optional byline the maker adds. */
+  description: string | null
+  /** A custom cover (data URL), or null to build one from the songs. */
+  cover: string | null
   createdAt: string
   createdBy: { id: string; name: string }
   tracks: PlaylistTrack[]

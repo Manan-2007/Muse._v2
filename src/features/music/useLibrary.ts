@@ -105,6 +105,29 @@ export function useLibrary(roomId: string | null) {
     [roomId],
   )
 
+  const updatePlaylist = useCallback(
+    async (
+      playlistId: string,
+      data: { name?: string; description?: string | null; cover?: string | null },
+    ) => {
+      if (!roomId) return null
+      const updated = await musicApi.updatePlaylist(roomId, playlistId, data)
+      setPlaylists((current) => current.map((one) => (one.id === updated.id ? updated : one)))
+      return updated
+    },
+    [roomId],
+  )
+
+  const reorderPlaylist = useCallback(
+    async (playlistId: string, ids: string[]) => {
+      if (!roomId) return null
+      const updated = await musicApi.reorderPlaylist(roomId, playlistId, ids)
+      setPlaylists((current) => current.map((one) => (one.id === updated.id ? updated : one)))
+      return updated
+    },
+    [roomId],
+  )
+
   return useMemo(
     () => ({
       playlists,
@@ -116,6 +139,8 @@ export function useLibrary(roomId: string | null) {
       removePlaylist,
       addToPlaylist,
       removeFromPlaylist,
+      updatePlaylist,
+      reorderPlaylist,
       reload,
     }),
     [
@@ -128,6 +153,8 @@ export function useLibrary(roomId: string | null) {
       removePlaylist,
       addToPlaylist,
       removeFromPlaylist,
+      updatePlaylist,
+      reorderPlaylist,
       reload,
     ],
   )
