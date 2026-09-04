@@ -6,6 +6,7 @@ import type {
   LibraryTrack,
   Lyrics,
   LikedTrack,
+  MusicSearchResult,
   Playlist,
   QueuedTrack,
   ResolvedTrack,
@@ -27,17 +28,41 @@ export function fetchCapabilities(roomId: string) {
   return api.get<{ search: boolean; sources: string[] }>(`/rooms/${roomId}/music`)
 }
 
-export function searchTracks(roomId: string, query: string) {
+/**
+ * Search for something to play.
+ *
+ * `kind: 'music'` (solo) returns catalogue songs; `'video'` (a shared room)
+ * returns YouTube results. The catalogue result has no playable ref — it is
+ * resolved by `resolveMusic` when queued.
+ */
+export function searchTracks(roomId: string, query: string, kind: 'music' | 'video' = 'video') {
   return api
-    .get<{ results: TrackSearchResult[] }>(
-      `/rooms/${roomId}/music/search?q=${encodeURIComponent(query)}`,
+    .get<{ kind: 'music' | 'video'; results: TrackSearchResult[]; music: MusicSearchResult[] }>(
+      `/rooms/${roomId}/music/search?q=${encodeURIComponent(query)}&kind=${kind}`,
     )
-    .then((response) => response.results)
+    .then((response) => ({
+      results: response.results ?? [],
+      music: response.music ?? [],
+    }))
 }
 
 export function resolveInput(roomId: string, input: string) {
   return api
     .post<{ resolved: ResolvedTrack }>(`/rooms/${roomId}/music/resolve`, { input })
+    .then((response) => response.resolved)
+}
+
+/** Turn a catalogue song into a queueable track with playable YouTube audio. */
+export function resolveMusic(roomId: string, song: MusicSearchResult) {
+  return api
+    .post<{ resolved: ResolvedTrack }>(`/rooms/${roomId}/music/resolve-music`, {
+      q: song.q,
+      title: song.title,
+      artist: song.artist,
+      album: song.album,
+      artwork: song.artwork,
+      duration: song.duration,
+    })
     .then((response) => response.resolved)
 }
 

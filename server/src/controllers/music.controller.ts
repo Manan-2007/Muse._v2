@@ -8,7 +8,9 @@ import * as trackModel from '../models/track.model.js'
 import { MUSIC_SOURCES } from '../services/music.service.js'
 import { assertMembership } from '../services/room.service.js'
 import {
+  resolveYouTubeAudio,
   searchAvailable,
+  searchCatalog,
   searchYouTube,
   youtubeIdFrom,
   youtubeOEmbed,
@@ -74,18 +76,79 @@ export async function search(req: Request, res: Response) {
   const query = typeof req.query.q === 'string' ? req.query.q.trim() : ''
   if (!query) throw HttpError.badRequest('Type something to search for')
 
-  /* The same YouTube search the watch feature uses, nudged towards music.
-     Without the hint the top results for a song title are as likely to be
-     reaction videos and lyric edits as the track itself. */
+  /*
+   * Solo listening searches a music catalogue; a shared room searches YouTube.
+   *
+   * On your own the point is songs — clean title, artist, album, cover — so the
+   * catalogue is the right shape. In a room the point is often "put
+   * this exact video on together", so YouTube stays. The client says which it
+   * wants with `kind`; music falls back to YouTube if the catalogue is quiet.
+   */
+  const kind = req.query.kind === 'music' ? 'music' : 'video'
+
+  if (kind === 'music') {
+    const music = await searchCatalog(query)
+    if (music.length > 0) {
+      res.json({ kind: 'music', music, results: [] })
+      return
+    }
+    /* Nothing in the catalogue — fall through to YouTube rather than empty. */
+  }
+
   const results = await searchYouTube(`${query} audio`)
 
   /* Cleaned here rather than in the client, so a song carries the same name
      whether it was searched for, pasted, or suggested. */
   res.json({
+    kind: 'video',
+    music: [],
     results: results.map((result) => {
       const named = cleanTrackName(result.title, result.channel)
       return { ...result, title: named.title, channel: named.artist ?? result.channel }
     }),
+  })
+}
+
+/**
+ * Pair a catalogue song with playable audio.
+ *
+ * A catalogue song has clean metadata but no YouTube ref, because resolving all
+ * of them up front would be a search per card. This resolves exactly one — the
+ * one being queued — to a YouTube id, then keeps the catalogue's title, artist,
+ * album and cover over YouTube's messier own.
+ */
+const resolveMusicBody = z.object({
+  q: z.string().trim().min(1).max(300),
+  title: z.string().trim().min(1).max(300),
+  artist: z.string().trim().max(200).nullable().optional(),
+  album: z.string().trim().max(200).nullable().optional(),
+  artwork: z.string().trim().max(600).nullable().optional(),
+  duration: z.number().int().positive().nullable().optional(),
+})
+
+export async function resolveMusic(req: Request, res: Response) {
+  await gate(req)
+
+  const parsed = resolveMusicBody.safeParse(req.body)
+  if (!parsed.success) {
+    throw HttpError.badRequest(parsed.error.issues[0]?.message ?? 'Could not play that')
+  }
+
+  const match = await resolveYouTubeAudio(parsed.data.q)
+  if (!match) {
+    throw HttpError.badRequest('Could not find a playable version of that song.')
+  }
+
+  res.json({
+    resolved: {
+      source: 'youtube' as const,
+      ref: match.id,
+      title: parsed.data.title,
+      artist: parsed.data.artist ?? null,
+      album: parsed.data.album ?? null,
+      artwork: parsed.data.artwork ?? match.thumbnail,
+      duration: parsed.data.duration ?? null,
+    },
   })
 }
 

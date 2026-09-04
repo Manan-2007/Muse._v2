@@ -195,6 +195,142 @@ export type SearchResult = {
 }
 
 /**
+ * A song from a music catalogue, not a video from YouTube.
+ *
+ * Solo listening searches for *songs* — clean title, artist, album and cover —
+ * rather than whatever a YouTube query turns up (remixes, reactions, lyric
+ * edits, hour-long loops). The catalogue is Deezer's public search, which needs
+ * no key and hands back proper metadata and artwork.
+ *
+ * There is no playable ref here on purpose: Deezer only streams 30-second
+ * previews, so the actual audio is resolved to a YouTube id at the moment a
+ * song is queued (`q` is the query for that). One lookup per song added, rather
+ * than one per song shown.
+ */
+export type MusicSearchResult = {
+  /** `cat:<id>`, so a catalogue song is never mistaken for a video id. */
+  id: string
+  title: string
+  artist: string
+  album: string | null
+  artwork: string | null
+  duration: number | null
+  /** The query that resolves this to playable YouTube audio. */
+  q: string
+}
+
+/** Collapse the release-per-market noise a catalogue returns to one card. */
+function dedupeSongs(rows: Omit<MusicSearchResult, 'id' | 'q'>[]): MusicSearchResult[] {
+  const seen = new Set<string>()
+  const out: MusicSearchResult[] = []
+  for (const row of rows) {
+    if (!row.title || !row.artist) continue
+    const key = `${row.title.toLowerCase()}|${row.artist.toLowerCase()}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({ ...row, id: `cat:${out.length}:${key}`, q: `${row.artist} ${row.title}` })
+    if (out.length >= 16) break
+  }
+  return out
+}
+
+type ITunesTrack = {
+  trackName?: string
+  artistName?: string
+  collectionName?: string
+  artworkUrl100?: string
+  trackTimeMillis?: number
+}
+
+/**
+ * Search Apple's iTunes catalogue for songs.
+ *
+ * Keyless, unauthenticated and reliable — the primary catalogue. Its artwork
+ * comes at 100px; the URL is a template, so bumping it to 600px is just a
+ * string swap and gives a cover worth showing.
+ */
+async function searchITunes(query: string): Promise<MusicSearchResult[]> {
+  const url = new URL('https://itunes.apple.com/search')
+  url.searchParams.set('term', query)
+  url.searchParams.set('entity', 'song')
+  url.searchParams.set('limit', '24')
+
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(7000) })
+    if (!response.ok) return []
+    const body = (await response.json()) as { results?: ITunesTrack[] }
+    return dedupeSongs(
+      (body.results ?? []).map((item) => ({
+        title: item.trackName ?? '',
+        artist: item.artistName ?? '',
+        album: item.collectionName ?? null,
+        artwork: item.artworkUrl100?.replace('100x100bb', '600x600bb') ?? null,
+        duration:
+          item.trackTimeMillis && item.trackTimeMillis > 0
+            ? Math.round(item.trackTimeMillis / 1000)
+            : null,
+      })),
+    )
+  } catch {
+    return []
+  }
+}
+
+type DeezerTrack = {
+  title?: string
+  title_short?: string
+  duration?: number
+  artist?: { name?: string }
+  album?: { title?: string; cover_big?: string; cover_medium?: string }
+}
+
+/** Deezer's catalogue — a fallback for the rare query iTunes has nothing for. */
+async function searchDeezerCatalog(query: string): Promise<MusicSearchResult[]> {
+  const url = new URL('https://api.deezer.com/search')
+  url.searchParams.set('q', query)
+  url.searchParams.set('limit', '24')
+
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(7000) })
+    if (!response.ok) return []
+    const body = (await response.json()) as { data?: DeezerTrack[] }
+    return dedupeSongs(
+      (body.data ?? []).map((item) => ({
+        title: item.title_short || item.title || '',
+        artist: item.artist?.name ?? '',
+        album: item.album?.title ?? null,
+        artwork: item.album?.cover_big ?? item.album?.cover_medium ?? null,
+        duration: item.duration && item.duration > 0 ? item.duration : null,
+      })),
+    )
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Search a music catalogue for songs — iTunes first, Deezer as a fallback.
+ *
+ * This is what solo listening searches instead of YouTube: it returns songs,
+ * not videos. Neither needs a key.
+ */
+export async function searchCatalog(query: string): Promise<MusicSearchResult[]> {
+  const itunes = await searchITunes(query)
+  if (itunes.length > 0) return itunes
+  return searchDeezerCatalog(query)
+}
+
+/** The single best YouTube audio match for a free-text song query. */
+export async function resolveYouTubeAudio(query: string): Promise<SearchResult | null> {
+  try {
+    const results = await searchYouTube(`${query} audio`)
+    return results[0] ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
  * Public Piped instances, used when there is no API key.
  *
  * Piped is an open-source YouTube front end whose search endpoint needs no

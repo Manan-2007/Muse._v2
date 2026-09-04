@@ -70,6 +70,23 @@ export type TrackSearchResult = {
   thumbnail: string
 }
 
+/**
+ * A song from the music catalogue (solo search), not a YouTube video.
+ *
+ * It has no playable ref yet — `q` resolves it to YouTube audio the moment it
+ * is queued — so it stays distinct from `TrackSearchResult`, which already is a
+ * video id.
+ */
+export type MusicSearchResult = {
+  id: string
+  title: string
+  artist: string
+  album: string | null
+  artwork: string | null
+  duration: number | null
+  q: string
+}
+
 /** A song as the library stores it, before it is anywhere in particular. */
 export type LibraryTrack = {
   source: MusicSource

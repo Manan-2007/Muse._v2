@@ -27,7 +27,9 @@ import { TrackCard, TrackGrid } from '@/features/music/TrackCard'
 import { TrackRow } from '@/features/music/TrackRow'
 import type {
   LibraryTrack,
+  MusicSearchResult,
   Playlist,
+  ResolvedTrack,
   TrackSearchResult,
 } from '@/features/music/types'
 import type { useLibrary } from '@/features/music/useLibrary'
@@ -57,6 +59,26 @@ const fromSearch = (result: TrackSearchResult): LibraryTrack => ({
 })
 
 /**
+ * A catalogue song, held with a `cat:` ref until it is played.
+ *
+ * The ref is a placeholder, not a video: it is swapped for real YouTube audio
+ * by `ensureResolved` the first time this song is queued, liked or added — see
+ * there. Keeping the ref lets a card carry its own identity before resolution.
+ */
+const fromMusic = (song: MusicSearchResult): LibraryTrack => ({
+  source: 'youtube',
+  ref: song.id,
+  title: song.title,
+  artist: song.artist,
+  album: song.album,
+  artwork: song.artwork,
+  duration: song.duration,
+})
+
+/** True for a catalogue song that still needs resolving to playable audio. */
+const isUnresolved = (track: LibraryTrack) => track.ref.startsWith('cat:')
+
+/**
  * The library half of the music app.
  *
  * Everything that is not the record itself: finding songs, keeping them, and
@@ -73,6 +95,7 @@ export function MusicBrowser({
   view: controlledView,
   onViewChange,
   hideChrome = false,
+  searchKind = 'video',
 }: {
   library: ReturnType<typeof useLibrary>
   /** Lets the shell colour its header for whichever view is showing. */
@@ -87,6 +110,8 @@ export function MusicBrowser({
   onViewChange?: (view: View) => void
   /** Suppress the internal rail (the app shell already carries the nav). */
   hideChrome?: boolean
+  /** Solo searches the music catalogue; a shared room searches YouTube. */
+  searchKind?: 'music' | 'video'
 }) {
   const { roomId, snapshot, canSearch, onQueued, queue } = useMusic()
 
@@ -100,7 +125,7 @@ export function MusicBrowser({
     [onViewChange],
   )
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<TrackSearchResult[] | null>(null)
+  const [searchCards, setSearchCards] = useState<LibraryTrack[] | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [openPlaylist, setOpenPlaylist] = useState<Playlist | null>(null)
@@ -115,6 +140,36 @@ export function MusicBrowser({
 
   const filePicker = useRef<HTMLInputElement>(null)
   const searchField = useRef<HTMLInputElement>(null)
+  /* Catalogue songs resolved to playable YouTube audio, kept so a song acted
+     on twice (queued, then liked) is only ever resolved once. */
+  const resolvedCache = useRef(new Map<string, ResolvedTrack>())
+
+  /**
+   * Swap a catalogue song's placeholder ref for real playable audio.
+   *
+   * A no-op for anything already playable (YouTube results, library rows), so
+   * it can wrap every action uniformly. Resolving here — rather than up front
+   * for every card — means one lookup per song a person actually touches.
+   */
+  const ensureResolved = useCallback(
+    async (track: LibraryTrack): Promise<LibraryTrack> => {
+      if (!isUnresolved(track) || !roomId) return track
+      const hit = resolvedCache.current.get(track.ref)
+      if (hit) return hit
+      const resolved = await musicApi.resolveMusic(roomId, {
+        id: track.ref,
+        title: track.title,
+        artist: track.artist ?? '',
+        album: track.album,
+        artwork: track.artwork,
+        duration: track.duration,
+        q: `${track.artist ?? ''} ${track.title}`.trim(),
+      })
+      resolvedCache.current.set(track.ref, resolved)
+      return resolved
+    },
+    [roomId],
+  )
 
   const current = snapshot?.track ?? null
   const playing = snapshot?.playing ?? false
@@ -164,21 +219,22 @@ export function MusicBrowser({
       if (!roomId) return
       setError(null)
       try {
+        const real = await ensureResolved(track)
         const queued = await musicApi.addToQueue(roomId, {
-          source: track.source,
-          ref: track.ref,
-          title: track.title,
-          artist: track.artist,
-          album: track.album,
-          artwork: track.artwork,
-          duration: track.duration,
+          source: real.source,
+          ref: real.ref,
+          title: real.title,
+          artist: real.artist,
+          album: real.album,
+          artwork: real.artwork,
+          duration: real.duration,
         })
         onQueued(queued, playNow)
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : 'Could not add that')
       }
     },
-    [roomId, onQueued],
+    [roomId, onQueued, ensureResolved],
   )
 
   const play = useCallback(
@@ -192,7 +248,7 @@ export function MusicBrowser({
 
     setBusy(true)
     setError(null)
-    setResults(null)
+    setSearchCards(null)
 
     try {
       const looksLikeLink = /^https?:\/\//i.test(value) || /^[\w-]{11}$/.test(value)
@@ -211,13 +267,15 @@ export function MusicBrowser({
         return
       }
 
-      setResults(await musicApi.searchTracks(roomId, value))
+      const { results, music } = await musicApi.searchTracks(roomId, value, searchKind)
+      /* Catalogue songs when the server found any (solo), YouTube otherwise. */
+      setSearchCards(music.length > 0 ? music.map(fromMusic) : results.map(fromSearch))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not search')
     } finally {
       setBusy(false)
     }
-  }, [query, roomId, canSearch, enqueue])
+  }, [query, roomId, canSearch, enqueue, searchKind])
 
   const upload = useCallback(
     async (file: File | undefined) => {
@@ -245,14 +303,15 @@ export function MusicBrowser({
       playlists: library.playlists,
       onPlay: () => play(track),
       onQueue: () => void enqueue(track, false),
-      onLike: () => void library.toggleLike(track),
-      onAddToPlaylist: (playlistId: string) => void library.addToPlaylist(playlistId, track),
+      onLike: () => void ensureResolved(track).then((real) => library.toggleLike(real)),
+      onAddToPlaylist: (playlistId: string) =>
+        void ensureResolved(track).then((real) => library.addToPlaylist(playlistId, real)),
       onNewPlaylist: () => {
         setNewListName('')
         setNewListFor(track)
       },
     }),
-    [playing, current, library, play, enqueue],
+    [playing, current, library, play, enqueue, ensureResolved],
   )
 
   const heading = useMemo(() => NAV.find((entry) => entry.id === view)!, [view])
@@ -294,9 +353,11 @@ export function MusicBrowser({
               const track = newListFor
               if (!name || !track) return
               setNewListFor(null)
-              void library.createPlaylist(name).then((created) => {
-                if (created) void library.addToPlaylist(created.id, track)
-              })
+              void ensureResolved(track).then((real) =>
+                library.createPlaylist(name).then((created) => {
+                  if (created) void library.addToPlaylist(created.id, real)
+                }),
+              )
             }}
           >
             <input
@@ -481,7 +542,7 @@ export function MusicBrowser({
                       }
                     />
                   ) : view === 'search' ? (
-                    <SearchView results={results} rowProps={rowProps} queued={queue.length} />
+                    <SearchView cards={searchCards} rowProps={rowProps} queued={queue.length} />
                   ) : view === 'liked' ? (
                     <LikedView tracks={library.liked} rowProps={rowProps} />
                   ) : view === 'playlists' ? (
@@ -524,15 +585,15 @@ function Empty({ icon: Icon, title, body }: { icon: typeof Music4; title: string
 type RowProps = (track: LibraryTrack) => React.ComponentProps<typeof TrackRow>
 
 function SearchView({
-  results,
+  cards,
   rowProps,
   queued,
 }: {
-  results: TrackSearchResult[] | null
+  cards: LibraryTrack[] | null
   rowProps: RowProps
   queued: number
 }) {
-  if (!results) {
+  if (!cards) {
     return (
       <Empty
         icon={Search}
@@ -546,14 +607,14 @@ function SearchView({
     )
   }
 
-  if (results.length === 0) {
+  if (cards.length === 0) {
     return <Empty icon={Search} title="Nothing found" body="Try a different set of words." />
   }
 
   return (
     <TrackGrid>
-      {results.map((result) => (
-        <TrackCard key={result.id} {...rowProps(fromSearch(result))} />
+      {cards.map((track) => (
+        <TrackCard key={`${track.source}:${track.ref}`} {...rowProps(track)} />
       ))}
     </TrackGrid>
   )

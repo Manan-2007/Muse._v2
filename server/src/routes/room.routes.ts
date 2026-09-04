@@ -40,6 +40,7 @@ roomRoutes.delete('/:id/watch/queue/:itemId', asyncHandler(watchController.remov
 roomRoutes.get('/:id/music', asyncHandler(musicController.capabilities))
 roomRoutes.get('/:id/music/search', asyncHandler(musicController.search))
 roomRoutes.post('/:id/music/resolve', asyncHandler(musicController.resolve))
+roomRoutes.post('/:id/music/resolve-music', asyncHandler(musicController.resolveMusic))
 roomRoutes.post('/:id/music/upload', receiveAudio, asyncHandler(musicController.upload))
 roomRoutes.get('/:id/music/library', asyncHandler(musicController.library))
 roomRoutes.get('/:id/music/lyrics', asyncHandler(musicController.lyrics))

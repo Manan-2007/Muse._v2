@@ -484,6 +484,7 @@ export function DashboardPage() {
                         library={library}
                         view={browserView}
                         hideChrome
+                        searchKind={sharedRoomId ? 'video' : 'music'}
                       />
                     </div>
                   </ErrorBoundary>

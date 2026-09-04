@@ -501,8 +501,8 @@ export function WatchStage({
        * page can establish a containing block, and when one does a fixed
        * element's insets resolve against something that is not the screen.
        *
-       * The opening is a CSS keyframe for the same reason `MusicStage` uses
-       * one — animating `clip-path` through Motion on a portalled, fixed
+       * The opening is a CSS keyframe rather than a Motion transition —
+       * animating `clip-path` through Motion on a portalled, fixed
        * element inside an `AnimatePresence` left it parked on its first
        * frame: a working page clipped to a zero-radius circle, which is to
        * say invisible.
