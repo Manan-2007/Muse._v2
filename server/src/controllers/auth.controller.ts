@@ -89,9 +89,11 @@ export async function welcome(req: Request, res: Response) {
  */
 const profileUpdate = z.object({
   name: z.string().trim().min(1, 'Tell us what to call you').max(40).optional(),
+  /* Either an uploaded image (a data URL) or one of the built-in illustrations
+     (a same-origin /avatars/…svg path). Colour-initial avatars are data URLs. */
   avatar: z
     .string()
-    .regex(/^data:image\//, 'That is not an image')
+    .regex(/^(data:image\/|\/avatars\/avatar-\d{2}\.svg$)/, 'That is not a valid avatar')
     .max(1_400_000, 'That image is too large')
     .nullable()
     .optional(),

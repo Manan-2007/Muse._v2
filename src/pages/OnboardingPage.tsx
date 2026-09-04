@@ -4,7 +4,14 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Check, Loader2, Music2, Search, Sparkles } from 'lucide-react'
 
 import { useAuth } from '@/features/auth/AuthContext'
-import { fetchArtists, submitOnboarding, type ArtistCard } from '@/features/auth/api'
+import {
+  fetchArtists,
+  submitOnboarding,
+  updateProfile,
+  type ArtistCard,
+} from '@/features/auth/api'
+import { AvatarPicker } from '@/features/settings/AvatarPicker'
+import { downscaleImage } from '@/features/settings/downscaleImage'
 import { MuseBackdrop } from '@/features/dashboard/hub/MuseBackdrop'
 import { Wordmark } from '@/components/layout/Logo'
 import { cn } from '@/lib/utils'
@@ -47,10 +54,11 @@ function genreHue(genre: string) {
   return Math.abs(hash) % 360
 }
 
-type StepId = 'genres' | 'artists' | 'review'
+type StepId = 'genres' | 'artists' | 'profile' | 'review'
 const STEPS: { id: StepId; label: string }[] = [
   { id: 'genres', label: 'Sound' },
   { id: 'artists', label: 'Artists' },
+  { id: 'profile', label: 'You' },
   { id: 'review', label: 'Finish' },
 ]
 
@@ -62,6 +70,8 @@ export function OnboardingPage() {
   const [genres, setGenres] = useState<Set<string>>(new Set())
   /** name → photo, so the review can show the faces you picked. */
   const [picked, setPicked] = useState<Map<string, string | null>>(new Map())
+  const [avatar, setAvatar] = useState<string | null>(null)
+  const [avatarBusy, setAvatarBusy] = useState(false)
 
   const [curated, setCurated] = useState<ArtistCard[]>([])
   const [query, setQuery] = useState('')
@@ -126,7 +136,17 @@ export function OnboardingPage() {
       setError(null)
       try {
         const result = await submitOnboarding(picks)
-        setUser(result.user)
+        /* Save the chosen face too, if there is one — one more call, so the
+           dashboard greets them already wearing it. */
+        let user = result.user
+        if (avatar) {
+          try {
+            user = await updateProfile({ avatar })
+          } catch {
+            /* The mix matters more than the avatar; don't block on it. */
+          }
+        }
+        setUser(user)
         const destination =
           result.count > 0 ? `/dashboard?room=${result.roomId}&activity=music` : '/dashboard'
         navigate(destination, { replace: true })
@@ -135,7 +155,7 @@ export function OnboardingPage() {
         setBusy(false)
       }
     },
-    [busy, navigate, setUser],
+    [busy, navigate, setUser, avatar],
   )
 
   const build = () =>
@@ -232,7 +252,28 @@ export function OnboardingPage() {
               )}
 
               {step === 2 && (
-                <StepReview genres={[...genres]} picked={picked} />
+                <StepProfile
+                  firstName={firstName}
+                  avatar={avatar}
+                  initial={firstName?.slice(0, 1) ?? user?.name.slice(0, 1) ?? 'M'}
+                  busy={avatarBusy}
+                  onSelect={setAvatar}
+                  onUpload={async (file) => {
+                    setAvatarBusy(true)
+                    try {
+                      setAvatar(await downscaleImage(file, 256))
+                    } catch {
+                      /* Ignore a bad file; they can pick an illustration instead. */
+                    } finally {
+                      setAvatarBusy(false)
+                    }
+                  }}
+                  onRemove={() => setAvatar(null)}
+                />
+              )}
+
+              {step === 3 && (
+                <StepReview genres={[...genres]} picked={picked} avatar={avatar} firstName={firstName} />
               )}
             </motion.div>
           </AnimatePresence>
@@ -389,6 +430,57 @@ function StepArtists({
   )
 }
 
+function StepProfile({
+  firstName,
+  avatar,
+  initial,
+  busy,
+  onSelect,
+  onUpload,
+  onRemove,
+}: {
+  firstName: string | undefined
+  avatar: string | null
+  initial: string
+  busy: boolean
+  onSelect: (avatar: string) => void
+  onUpload: (file: File) => void
+  onRemove: () => void
+}) {
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center gap-4">
+        <span className="size-16 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-signal to-signal-deep ring-1 ring-inset ring-white/15">
+          {avatar ? (
+            <img src={avatar} alt="" className="size-full object-cover" />
+          ) : (
+            <span className="grid size-full place-items-center text-[1.4rem] font-semibold text-white">
+              {initial.toUpperCase()}
+            </span>
+          )}
+        </span>
+        <div className="min-w-0">
+          <h1 className="font-display text-[clamp(1.6rem,5vw,2.3rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-chalk">
+            {firstName ? `Look the part, ${firstName}` : 'Pick a look'}
+          </h1>
+          <p className="mt-1 text-[0.9rem] text-mist">Choose a face, or your initial on a colour.</p>
+        </div>
+      </div>
+
+      <div className="scrollbar-none mt-6 min-h-0 flex-1 overflow-y-auto pb-2">
+        <AvatarPicker
+          value={avatar}
+          initial={initial}
+          busy={busy}
+          onSelect={onSelect}
+          onUpload={onUpload}
+          onRemove={onRemove}
+        />
+      </div>
+    </div>
+  )
+}
+
 function ArtistTile({
   card,
   selected,
@@ -444,9 +536,13 @@ function ArtistTile({
 function StepReview({
   genres,
   picked,
+  avatar,
+  firstName,
 }: {
   genres: string[]
   picked: Map<string, string | null>
+  avatar: string | null
+  firstName: string | undefined
 }) {
   const artists = [...picked.entries()]
   return (
@@ -455,9 +551,16 @@ function StepReview({
         <Sparkles aria-hidden className="size-3.5" />
         Ready when you are
       </span>
-      <h1 className="mt-4 text-balance font-display text-[clamp(1.7rem,5vw,2.5rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-chalk">
-        Here&apos;s your Muse.
-      </h1>
+      <div className="mt-4 flex items-center gap-3">
+        {avatar && (
+          <span className="size-12 shrink-0 overflow-hidden rounded-full ring-1 ring-inset ring-white/15">
+            <img src={avatar} alt="" className="size-full object-cover" />
+          </span>
+        )}
+        <h1 className="text-balance font-display text-[clamp(1.7rem,5vw,2.5rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-chalk">
+          {firstName ? `Here's your Muse., ${firstName}` : "Here's your Muse."}
+        </h1>
+      </div>
       <p className="mt-3 max-w-md text-[0.95rem] leading-relaxed text-mist">
         We&apos;ll build a starter mix from these and cue it up. Everything is changeable later.
       </p>
