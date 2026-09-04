@@ -3,13 +3,15 @@ import { cn } from '@/lib/utils'
 /**
  * The Muse. mark.
  *
- * A record: the outer edge, two grooves, and the spindle at the centre. Drawn
- * in strokes of `currentColor` so it takes the colour of whatever it sits on
- * and reads on the dark chrome and a light page alike — the same reason the
- * old cut-out mark did, without the mask.
+ * A record: an outer edge, two grooves, and a red centre where a spindle would
+ * be — the same red as the period in the "Muse." wordmark, so the mark and the
+ * name are one idea. The rings take `currentColor`, so the mark sits on dark
+ * chrome or a light page alike; the centre is always the signal red, which is
+ * the one spot of brand colour that makes it read as Muse. and not just a
+ * generic disc.
  *
- * The spindle hole is a filled dot rather than a ring so the centre still reads
- * at 28px, where a hollow one closes up to a smudge.
+ * Drawn on a 100×100 grid with generous stroke weights so it holds together
+ * as a favicon and an app icon, not only at header size.
  */
 export function Logo({ className }: { className?: string }) {
   return (
@@ -20,10 +22,36 @@ export function Logo({ className }: { className?: string }) {
       aria-label="Muse."
       fill="none"
     >
-      <circle cx="50" cy="50" r="46" stroke="currentColor" strokeWidth="6" />
-      <circle cx="50" cy="50" r="31" stroke="currentColor" strokeWidth="3" opacity="0.55" />
-      <circle cx="50" cy="50" r="20" stroke="currentColor" strokeWidth="3" opacity="0.35" />
-      <circle cx="50" cy="50" r="6.5" fill="currentColor" />
+      <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="5.5" />
+      <circle cx="50" cy="50" r="33" stroke="currentColor" strokeWidth="2.5" opacity="0.5" />
+      <circle cx="50" cy="50" r="24" stroke="currentColor" strokeWidth="2.5" opacity="0.32" />
+      {/* The label: the brand red, with a punched spindle hole. */}
+      <circle cx="50" cy="50" r="13" fill="var(--color-signal)" />
+      <circle cx="50" cy="50" r="3" fill="currentColor" />
     </svg>
+  )
+}
+
+/**
+ * The full lockup: the record mark beside the "Muse." wordmark.
+ *
+ * One component so every header, footer and splash spells the name the same
+ * way — "Muse" in the page's ink, the period in the signal red that the mark's
+ * centre also wears.
+ */
+export function Wordmark({
+  className,
+  markClassName,
+}: {
+  className?: string
+  markClassName?: string
+}) {
+  return (
+    <span className={cn('inline-flex items-center gap-2.5', className)}>
+      <Logo className={markClassName} />
+      <span className="font-display text-[1.05rem] font-semibold tracking-[-0.02em] text-chalk">
+        Muse<span className="text-signal">.</span>
+      </span>
+    </span>
   )
 }
