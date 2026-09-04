@@ -1,59 +1,29 @@
 import { Route, Routes, useLocation } from 'react-router-dom'
 
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { Header } from '@/components/layout/Header'
-import { LiquidGlassFilter } from '@/components/layout/LiquidGlassFilter'
 import { SignInPage, SignUpPage } from '@/pages/AuthPages'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { LandingPage } from '@/pages/LandingPage'
 import { OnboardingPage } from '@/pages/OnboardingPage'
 import { RequireAuth } from '@/pages/RequireAuth'
-import { useLiquidPointer } from '@/hooks/useLiquidPointer'
-import { useSmoothScroll } from '@/hooks/useSmoothScroll'
 
+/**
+ * The app shell.
+ *
+ * Deliberately thin: no global cursor, no glass-filter overlay, no floating
+ * marketing header. Every screen paints its own chrome now — the aesthetic is
+ * a streaming app (Apple Music), a record player (MD Vinyl) and rooms
+ * (Discord), and none of those wear a bespoke pointer.
+ */
 export default function App() {
-  useSmoothScroll()
-  /* One listener for every liquid-glass control on the page. */
-  useLiquidPointer()
   const { pathname } = useLocation()
 
-  /*
-   * The hub paints its own full-screen world, so anything behind it would be
-   * an animating surface nobody can see — and it would have to share frames
-   * with the hub's own canvas and particle field.
-   */
-  const onHub = pathname === '/dashboard'
-  /* The app shell (dashboard) and the welcome flow draw their own top bar, so
-     the floating marketing header would be a second, conflicting one. */
-  const ownsChrome = onHub || pathname === '/welcome'
-
-  /*
-   * Everything that is not the hub is dark now.
-   *
-   * This used to be two skins: cinematic dark for the marketing page, an
-   * off-white neon canvas for auth. That split stopped making sense once the
-   * landing page became the lit room and the black silk behind it — signing up
-   * threw the visitor from that into a bright page belonging to a different
-   * product. Auth is the step immediately after the landing's call to action,
-   * so it now inherits the same material.
-   *
-   * Keyed off "not the hub" rather than off `/` specifically, because the
-   * catch-all route renders the landing page at unknown paths too — testing
-   * for the exact path left those rendering the dark page over the light
-   * backdrop.
-   */
-  const dark = !onHub
-
   return (
-    <div className={dark ? 'relative min-h-svh bg-void' : 'relative min-h-svh'}>
-      <LiquidGlassFilter />
-      {!ownsChrome && <Header />}
-
+    <div className="relative min-h-svh bg-void">
       {/*
-        The last line of defence.
-        Any render error that gets past a feature's own boundary would
-        otherwise unmount the entire application to a black page with no way
-        back. Keyed on the path so navigating away clears it.
+        The last line of defence. Any render error that gets past a feature's
+        own boundary would otherwise unmount the whole app to a black page with
+        no way back. Keyed on the path so navigating away clears it.
       */}
       <ErrorBoundary
         resetKey={pathname}
@@ -77,28 +47,28 @@ export default function App() {
           </div>
         )}
       >
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/signin" element={<SignInPage />} />
-        <Route path="/signup" element={<SignUpPage />} />
-        <Route
-          path="/welcome"
-          element={
-            <RequireAuth allowUnonboarded>
-              <OnboardingPage />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <RequireAuth>
-              <DashboardPage />
-            </RequireAuth>
-          }
-        />
-        <Route path="*" element={<LandingPage />} />
-      </Routes>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/signin" element={<SignInPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
+          <Route
+            path="/welcome"
+            element={
+              <RequireAuth allowUnonboarded>
+                <OnboardingPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <RequireAuth>
+                <DashboardPage />
+              </RequireAuth>
+            }
+          />
+          <Route path="*" element={<LandingPage />} />
+        </Routes>
       </ErrorBoundary>
     </div>
   )
