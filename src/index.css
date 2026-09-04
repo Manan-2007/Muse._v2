@@ -1460,6 +1460,10 @@ body::-webkit-scrollbar {
   --color-dusk: #86868f;
   /* The ambient backdrop's edge-darkening — near nothing on a light page. */
   --backdrop-vignette: rgba(0, 0, 0, 0.05);
+  /* The immersive record view, lit for light mode: a frosted light wash over
+     the cover and almost no vignette, so it reads as light, not a dark stage. */
+  --player-wash: rgba(244, 243, 239, 0.62);
+  --player-vignette: rgba(0, 0, 0, 0.04);
 }
 
 :root[data-theme='light'] {

@@ -99,10 +99,24 @@ export function CoverAmbience({
         }}
       />
 
+      {/* A theme wash — nothing in dark, a light frosting in light — so the
+          record view follows the app's theme instead of staying a dark stage,
+          and dark text stays legible over bright artwork in light mode. */}
+      {!translucent && (
+        <div className="absolute inset-0" style={{ background: 'var(--player-wash, transparent)' }} />
+      )}
+
       {/* Grain and a vignette, the same finish the rest of the app uses — they
-          are what stop a large soft gradient from banding on a dark screen. */}
+          are what stop a large soft gradient from banding. The vignette is
+          themed: heavy in dark, near-nothing in light. */}
       <div className="grain absolute inset-0 opacity-[0.14] mix-blend-overlay" />
-      <div className="absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_50%,transparent_45%,rgba(0,0,0,0.72))]" />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(120% 90% at 50% 50%, transparent 45%, var(--player-vignette, rgba(0,0,0,0.72)))',
+        }}
+      />
     </div>
   )
 }

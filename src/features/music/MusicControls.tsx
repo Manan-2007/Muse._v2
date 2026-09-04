@@ -121,7 +121,7 @@ export function MusicControls({
           aria-pressed={shuffle}
           className={cn(
             'grid size-9 place-items-center rounded-full outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal',
-            shuffle ? 'text-signal-bright' : 'text-white/55 hover:text-chalk',
+            shuffle ? 'text-signal-bright' : 'text-mist hover:text-chalk',
           )}
         >
           <Shuffle aria-hidden className="size-[1.15rem]" />
@@ -168,7 +168,7 @@ export function MusicControls({
           aria-pressed={repeat}
           className={cn(
             'grid size-9 place-items-center rounded-full outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal',
-            repeat ? 'text-signal-bright' : 'text-white/55 hover:text-chalk',
+            repeat ? 'text-signal-bright' : 'text-mist hover:text-chalk',
           )}
         >
           {repeat ? (

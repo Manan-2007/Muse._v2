@@ -8,7 +8,6 @@ import { useMusic } from '@/features/music/MusicContext'
 import { MusicControls } from '@/features/music/MusicControls'
 import type { CoverPalette } from '@/features/music/useCoverPalette'
 import { Vinyl } from '@/features/music/Vinyl'
-import { useScratchSound } from '@/features/music/useScratchSound'
 import { cn } from '@/lib/utils'
 
 /**
@@ -79,7 +78,6 @@ export function NowPlaying({
   durationRef.current = duration
   const scrubBase = useRef(0)
   const lastScrubSeek = useRef(0)
-  const scratch = useScratchSound()
 
   const seekTo = (seconds: number) => send('music:control', { action: 'seek', position: seconds })
 
@@ -106,7 +104,7 @@ export function NowPlaying({
 
   const iconButton =
     'relative grid size-9 shrink-0 place-items-center rounded-full outline-none transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal'
-  const iconIdle = 'text-white/60 hover:bg-white/10 hover:text-chalk'
+  const iconIdle = 'text-mist hover:bg-chalk/10 hover:text-chalk'
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
@@ -221,17 +219,14 @@ export function NowPlaying({
               scrubbable={duration > 0}
               onScrubStart={() => {
                 scrubBase.current = positionRef.current
-                scratch.start()
               }}
               onScrub={(deltaSeconds) => {
-                scratch.move(deltaSeconds)
                 const now = performance.now()
                 if (now - lastScrubSeek.current < 120) return
                 lastScrubSeek.current = now
                 seekTo(scrubTarget(deltaSeconds))
               }}
               onScrubEnd={(deltaSeconds) => {
-                scratch.end()
                 lastScrubSeek.current = 0
                 seekTo(scrubTarget(deltaSeconds))
               }}
@@ -243,7 +238,7 @@ export function NowPlaying({
               {track.title}
             </h1>
             {(track.artist ?? track.album) && (
-              <p className="mt-2 truncate text-[1.02rem] font-medium text-[#ffb3bd] [text-shadow:0_2px_10px_rgba(0,0,0,0.5)]">
+              <p className="mt-2 truncate text-[1.02rem] font-medium text-signal-bright [text-shadow:0_1px_10px_rgba(0,0,0,0.3)]">
                 {[track.artist, track.album].filter(Boolean).join(' · ')}
               </p>
             )}
