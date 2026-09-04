@@ -24,6 +24,7 @@ export function MusicDock({
   onOpen,
   onLeave,
   insetRight = 0,
+  insetLeft = 0,
 }: {
   visible: boolean
   /** Given the dock's own box, so the page opens out of it too. */
@@ -32,6 +33,8 @@ export function MusicDock({
   onLeave: () => void
   /** Rem the room panel occupies, so the bar never hides behind it. */
   insetRight?: number
+  /** Rem the left sidebar occupies, so the bar centres over the content. */
+  insetLeft?: number
 }) {
   const { snapshot, queue, send, handle, position, duration, singalong } = useMusic()
   const track = snapshot?.track ?? null
@@ -46,8 +49,8 @@ export function MusicDock({
           /* Above the activity stages (135) so the bar for the music playing
              underneath one is visible; below the room panel and floating call,
              which are deliberately opened. Sits just above the tab bar. */
-          className="pointer-events-none fixed bottom-[4.75rem] left-0 z-[137] flex justify-center px-3 sm:bottom-[6rem] sm:px-5"
-          style={{ right: `${insetRight}rem` }}
+          className="pointer-events-none fixed bottom-[4.75rem] left-0 z-[137] flex justify-center px-3 sm:px-5 lg:bottom-[1.5rem]"
+          style={{ right: `${insetRight}rem`, left: `${insetLeft}rem` }}
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 16 }}

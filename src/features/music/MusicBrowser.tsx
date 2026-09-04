@@ -35,7 +35,8 @@ import { cn } from '@/lib/utils'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
-type View = 'search' | 'liked' | 'playlists' | 'suggested'
+export type BrowserView = 'search' | 'liked' | 'playlists' | 'suggested'
+type View = BrowserView
 
 const NAV: { id: View; label: string; icon: typeof Search }[] = [
   { id: 'search', label: 'Search', icon: Search },
@@ -69,16 +70,35 @@ export function MusicBrowser({
   library,
   onSectionChange,
   initialView = 'search',
+  view: controlledView,
+  onViewChange,
+  hideChrome = false,
 }: {
   library: ReturnType<typeof useLibrary>
   /** Lets the shell colour its header for whichever view is showing. */
   onSectionChange?: (view: View) => void
   /** Which section to open on — the navbar uses this to land on Library etc. */
   initialView?: View
+  /**
+   * Drive the section from outside. When given, the browser's own rail is the
+   * app's left sidebar rather than the strip inside here — see `hideChrome`.
+   */
+  view?: View
+  onViewChange?: (view: View) => void
+  /** Suppress the internal rail (the app shell already carries the nav). */
+  hideChrome?: boolean
 }) {
   const { roomId, snapshot, canSearch, onQueued, queue } = useMusic()
 
-  const [view, setView] = useState<View>(initialView)
+  const [internalView, setInternalView] = useState<View>(initialView)
+  const view = controlledView ?? internalView
+  const setView = useCallback(
+    (next: View) => {
+      if (onViewChange) onViewChange(next)
+      else setInternalView(next)
+    },
+    [onViewChange],
+  )
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<TrackSearchResult[] | null>(null)
   const [busy, setBusy] = useState(false)
@@ -105,6 +125,12 @@ export function MusicBrowser({
 
   useEffect(() => {
     if (view === 'search') searchField.current?.focus()
+  }, [view])
+
+  /* Leaving a section closes any open playlist under it — otherwise switching
+     away and back from the sidebar would land you inside the last playlist. */
+  useEffect(() => {
+    setOpenPlaylist(null)
   }, [view])
 
   /* Suggestions follow whatever is on — the seed is the current artist, so the
@@ -297,6 +323,7 @@ export function MusicBrowser({
         orientation.
       */}
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        {!hideChrome && (
         <nav className="flex shrink-0 gap-1 overflow-x-auto px-4 pb-2 pt-1 md:w-52 md:flex-col md:overflow-visible md:px-4 md:pb-6 md:pt-2">
           {NAV.map((entry) => {
             const Icon = entry.icon
@@ -350,6 +377,7 @@ export function MusicBrowser({
             </button>
           </div>
         </nav>
+        )}
 
         <div className="flex min-h-0 flex-1 flex-col px-4 pb-2 md:px-6">
           <AnimatePresence mode="wait">
@@ -361,16 +389,40 @@ export function MusicBrowser({
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.3, ease: EASE }}
             >
-              <div className="shrink-0 pb-3">
-                <h2 className="font-display text-[clamp(1.5rem,3vw,2rem)] font-semibold tracking-[-0.03em] text-chalk">
-                  {openPlaylist ? openPlaylist.name : heading.label}
-                </h2>
-                {openPlaylist && (
-                  <p className="mt-1 text-[0.78rem] text-dusk">
-                    {openPlaylist.tracks.length}{' '}
-                    {openPlaylist.tracks.length === 1 ? 'song' : 'songs'} · made by{' '}
-                    {openPlaylist.createdBy.name}
-                  </p>
+              <div className="flex shrink-0 items-start justify-between gap-3 pb-3">
+                <div className="min-w-0">
+                  <h2 className="font-display text-[clamp(1.5rem,3vw,2rem)] font-semibold tracking-[-0.03em] text-chalk">
+                    {openPlaylist ? openPlaylist.name : heading.label}
+                  </h2>
+                  {openPlaylist && (
+                    <p className="mt-1 text-[0.78rem] text-dusk">
+                      {openPlaylist.tracks.length}{' '}
+                      {openPlaylist.tracks.length === 1 ? 'song' : 'songs'} · made by{' '}
+                      {openPlaylist.createdBy.name}
+                    </p>
+                  )}
+                </div>
+
+                {/* With the rail hidden, upload lives beside the section title. */}
+                {hideChrome && (
+                  <button
+                    type="button"
+                    onClick={() => filePicker.current?.click()}
+                    disabled={uploadProgress !== null}
+                    className="flex shrink-0 items-center gap-2 rounded-full border border-white/12 px-3.5 py-2 text-[0.78rem] text-mist outline-none transition-colors hover:border-white/25 hover:text-chalk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal disabled:opacity-50"
+                  >
+                    {uploadProgress !== null ? (
+                      <>
+                        <Loader2 aria-hidden className="size-4 shrink-0 animate-spin" />
+                        <span>{Math.round(uploadProgress * 100)}%</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload aria-hidden className="size-4 shrink-0" />
+                        <span className="hidden sm:inline">Upload</span>
+                      </>
+                    )}
+                  </button>
                 )}
               </div>
 
