@@ -64,13 +64,27 @@ export function CircularVisualizer({
     const draw = (time: number) => {
       frame = requestAnimationFrame(draw)
 
-      const rect = element.getBoundingClientRect()
+      /*
+       * Size from the PARENT, never from the canvas's own box. A <canvas> is a
+       * replaced element, so `absolute inset-[-28%]` does not constrain its
+       * layout size — that comes from its width/height attributes. Reading the
+       * canvas's own rect and writing it back as the bitmap size is a feedback
+       * loop: each frame measures itself a little larger and inflates again,
+       * doubling until it hits the browser's max canvas dimension and renders
+       * as a solid white sheet over the player. The disc container is a stable
+       * square; the ring overflows it by 28% on every side (see inset-[-28%]),
+       * so the canvas is 1.56× the disc. We also pin an explicit CSS size, so
+       * the replaced element can never fall back to its intrinsic dimensions.
+       */
+      const host = element.parentElement ?? element
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
-      const size = Math.round(rect.width)
-      if (size === 0) return
+      const size = Math.round(host.getBoundingClientRect().width * 1.56)
+      if (size === 0 || !Number.isFinite(size)) return
       if (element.width !== size * dpr) {
         element.width = size * dpr
         element.height = size * dpr
+        element.style.width = `${size}px`
+        element.style.height = `${size}px`
       }
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
