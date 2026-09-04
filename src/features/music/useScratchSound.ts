@@ -23,6 +23,14 @@ export function scratchEnabled() {
   }
 }
 
+export function setScratchEnabled(on: boolean) {
+  try {
+    localStorage.setItem(SETTING_KEY, on ? 'on' : 'off')
+  } catch {
+    /* Not fatal — the preference just won't persist. */
+  }
+}
+
 export function useScratchSound() {
   const ctx = useRef<AudioContext | null>(null)
   const gain = useRef<GainNode | null>(null)

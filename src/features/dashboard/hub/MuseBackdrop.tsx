@@ -41,7 +41,13 @@ export function MuseBackdrop({
       {/* The finish the rest of the app uses: grain to stop banding, a vignette
           to seat the light in the frame. */}
       <div className="grain absolute inset-0 opacity-[0.12] mix-blend-overlay" />
-      <div className="absolute inset-0 bg-[radial-gradient(125%_95%_at_50%_45%,transparent_42%,rgba(0,0,0,0.78))]" />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(125% 95% at 50% 45%, transparent 42%, var(--backdrop-vignette, rgba(0,0,0,0.78)))',
+        }}
+      />
     </div>
   )
 }

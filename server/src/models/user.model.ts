@@ -5,6 +5,7 @@ export type UserRecord = {
   email: string
   name: string
   passwordHash: string
+  avatar: string | null
   createdAt: Date
   onboardedAt: Date | null
   favGenres: string
@@ -23,6 +24,7 @@ export type PublicUser = {
   id: string
   email: string
   name: string
+  avatar: string | null
   createdAt: Date
   onboardedAt: Date | null
 }
@@ -32,9 +34,15 @@ export function toPublicUser(user: UserRecord): PublicUser {
     id: user.id,
     email: user.email,
     name: user.name,
+    avatar: user.avatar,
     createdAt: user.createdAt,
     onboardedAt: user.onboardedAt,
   }
+}
+
+/** Update the parts of a profile a person can change themselves. */
+export function updateProfile(userId: string, data: { name?: string; avatar?: string | null }) {
+  return prisma.user.update({ where: { id: userId }, data })
 }
 
 /** Record the taste picks and stamp the account as onboarded. */

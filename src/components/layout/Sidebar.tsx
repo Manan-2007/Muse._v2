@@ -54,7 +54,7 @@ export function Sidebar({
   onSignOut,
   className,
 }: {
-  user: { name: string } | null
+  user: { name: string; avatar?: string | null } | null
   view: ShellView
   librarySection: LibrarySection
   playlists: Playlist[]
@@ -86,7 +86,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        'flex h-full w-64 shrink-0 flex-col border-r border-white/[0.07] bg-[#0a0a0d]/85 backdrop-blur-2xl',
+        'flex h-full w-64 shrink-0 flex-col border-r border-white/[0.07] bg-abyss/90 backdrop-blur-2xl',
         className,
       )}
     >
@@ -245,9 +245,13 @@ export function Sidebar({
       <div className="flex shrink-0 items-center gap-2.5 border-t border-white/[0.07] px-3 py-3">
         <span
           aria-hidden
-          className="grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-signal to-signal-deep text-[0.8rem] font-semibold text-white"
+          className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-signal to-signal-deep text-[0.8rem] font-semibold text-white"
         >
-          {user?.name.slice(0, 1).toUpperCase()}
+          {user?.avatar ? (
+            <img src={user.avatar} alt="" className="size-full object-cover" />
+          ) : (
+            user?.name.slice(0, 1).toUpperCase()
+          )}
         </span>
         <span className="min-w-0 flex-1 truncate text-[0.82rem] font-medium text-chalk">
           {user?.name ?? 'You'}

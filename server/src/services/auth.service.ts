@@ -44,3 +44,11 @@ export async function getUser(userId: string) {
   if (!user) throw HttpError.unauthorized()
   return userModel.toPublicUser(user)
 }
+
+export async function updateProfile(
+  userId: string,
+  input: { name?: string; avatar?: string | null },
+) {
+  const user = await userModel.updateProfile(userId, input)
+  return userModel.toPublicUser(user)
+}

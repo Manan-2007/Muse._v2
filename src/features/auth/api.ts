@@ -6,6 +6,8 @@ export type User = {
   id: string
   email: string
   name: string
+  /** Profile photo as a data URL, or null for the initial. */
+  avatar: string | null
   createdAt: string
   /** Null until the welcome flow is done — the onboarding gate reads this. */
   onboardedAt: string | null
@@ -38,6 +40,11 @@ export function logout() {
 
 export function fetchMe() {
   return api.get<UserResponse>('/auth/me').then((r) => r.user)
+}
+
+/** Change your name and/or photo. `avatar: null` clears it to the initial. */
+export function updateProfile(input: { name?: string; avatar?: string | null }) {
+  return api.patch<{ user: User }>('/auth/profile', input).then((r) => r.user)
 }
 
 /**

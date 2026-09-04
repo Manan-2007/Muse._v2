@@ -79,6 +79,29 @@ export async function welcome(req: Request, res: Response) {
   res.json(await onboard(req.userId!, input))
 }
 
+/*
+ * The parts of a profile a person edits themselves: their name and photo.
+ *
+ * The avatar is a data URL, capped so a full-size photo can't be dropped
+ * straight into the row — the client downscales to a thumbnail first. An
+ * explicit null clears it back to the initial. Both fields are optional so the
+ * one form can save either.
+ */
+const profileUpdate = z.object({
+  name: z.string().trim().min(1, 'Tell us what to call you').max(40).optional(),
+  avatar: z
+    .string()
+    .regex(/^data:image\//, 'That is not an image')
+    .max(1_400_000, 'That image is too large')
+    .nullable()
+    .optional(),
+})
+
+export async function updateProfile(req: Request, res: Response) {
+  const input = parse(profileUpdate, req.body)
+  res.json({ user: await authService.updateProfile(req.userId!, input) })
+}
+
 export function logout(_req: Request, res: Response) {
   clearSessionCookie(res)
   res.json({ ok: true })

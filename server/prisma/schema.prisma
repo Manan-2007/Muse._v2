@@ -13,6 +13,9 @@ model User {
   name         String
   /// bcrypt hash — never the plaintext, and never returned by the API
   passwordHash String
+  /// Profile photo as a small data URL, or null for the initial. Kept inline
+  /// rather than in file storage — it is one downscaled thumbnail per account.
+  avatar       String?
   createdAt    DateTime @default(now())
 
   /// When the welcome flow was completed. Null means the person has signed up

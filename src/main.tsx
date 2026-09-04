@@ -6,7 +6,11 @@ import { AuthProvider } from '@/features/auth/AuthProvider'
 import { EntranceProvider } from '@/features/transition/EntranceProvider'
 import App from './App.tsx'
 import { clearChunkReloadGuard } from '@/lib/lazyChunk'
+import { initTheme } from '@/lib/theme'
 import './index.css'
+
+/* Paint in the remembered theme from the first frame, before React renders. */
+initTheme()
 
 /*
  * The ngrok service-worker slips a `ngrok-skip-browser-warning` header onto

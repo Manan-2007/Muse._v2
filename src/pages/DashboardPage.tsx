@@ -55,6 +55,7 @@ import { useWatchPulse } from '@/features/watch/useWatchPulse'
 import { WatchInvite } from '@/features/watch/WatchInvite'
 import { WatchStage } from '@/features/watch/WatchStage'
 import { CreateRoomForm } from '@/features/dashboard/components/CreateRoomForm'
+import { SettingsPanel } from '@/features/settings/SettingsPanel'
 import { fetchPlaylists, fetchSuggestions } from '@/features/music/api'
 import type { LibraryTrack, Playlist } from '@/features/music/types'
 import { fetchPersonalRoom, fetchRoom, type Room } from '@/features/rooms/api'
@@ -441,9 +442,13 @@ export function DashboardPage() {
                 <Wordmark />
                 <span
                   aria-hidden
-                  className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-signal to-signal-deep text-[0.75rem] font-semibold text-white"
+                  className="grid size-8 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-signal to-signal-deep text-[0.75rem] font-semibold text-white"
                 >
-                  {user?.name.slice(0, 1).toUpperCase()}
+                  {user?.avatar ? (
+                    <img src={user.avatar} alt="" className="size-full object-cover" />
+                  ) : (
+                    user?.name.slice(0, 1).toUpperCase()
+                  )}
                 </span>
               </header>
 
@@ -691,10 +696,7 @@ export function DashboardPage() {
               subtitle="Appearance, sound and your profile."
               onClose={() => setPanel(null)}
             >
-              <p className="text-[0.9rem] leading-relaxed text-mist">
-                Light mode, the turntable&apos;s scratch sound, your photo and your name are
-                landing here shortly.
-              </p>
+              <SettingsPanel />
             </HubDrawer>
           )}
         </AnimatePresence>
