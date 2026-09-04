@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -28,6 +28,8 @@ import { useWatchPulse } from '@/features/watch/useWatchPulse'
 import { WatchInvite } from '@/features/watch/WatchInvite'
 import { WatchStage } from '@/features/watch/WatchStage'
 import { CreateRoomForm } from '@/features/dashboard/components/CreateRoomForm'
+import { fetchPlaylists, fetchSuggestions } from '@/features/music/api'
+import type { LibraryTrack, Playlist } from '@/features/music/types'
 import { fetchPersonalRoom, fetchRoom, type Room } from '@/features/rooms/api'
 import { usePresence, type Present } from '@/features/rooms/usePresence'
 import { usePresenceWatch } from '@/features/rooms/usePresenceWatch'
@@ -742,6 +744,28 @@ function HomeContent({
     { key: 'rooms', label: 'Rooms', hint: 'Listen together', icon: Users, onClick: onOpenRooms },
   ]
 
+  /* The shelves — your recent tracks and playlists, drawn from your personal
+     room. Fetched here so Home reads like a streaming app's front page rather
+     than a launcher. Tapping opens the player. */
+  const [recent, setRecent] = useState<LibraryTrack[]>([])
+  const [playlists, setPlaylists] = useState<Playlist[]>([])
+  useEffect(() => {
+    let cancelled = false
+    void fetchPersonalRoom()
+      .then((room) => {
+        void fetchSuggestions(room.id)
+          .then((s) => !cancelled && setRecent(s.history))
+          .catch(() => undefined)
+        void fetchPlaylists(room.id)
+          .then((p) => !cancelled && setPlaylists(p))
+          .catch(() => undefined)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
     <div className="space-y-8 py-2">
       <div>
@@ -803,6 +827,63 @@ function HomeContent({
           )
         })}
       </div>
+
+      {recent.length > 0 && (
+        <Shelf title="Recently played" onMore={onListen}>
+          {recent.slice(0, 12).map((track, index) => (
+            <button
+              key={`${track.ref}-${index}`}
+              type="button"
+              onClick={onListen}
+              className="group flex w-36 shrink-0 flex-col gap-2 rounded-lg text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+            >
+              <span className="relative aspect-square overflow-hidden rounded-lg bg-white/[0.05] ring-1 ring-inset ring-white/10">
+                {track.artwork ? (
+                  <img src={track.artwork} alt="" className="size-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                ) : (
+                  <span className="grid size-full place-items-center text-dusk">
+                    <Disc3 aria-hidden className="size-6" />
+                  </span>
+                )}
+              </span>
+              <span className="truncate text-[0.82rem] font-medium text-chalk">{track.title}</span>
+              {track.artist && (
+                <span className="-mt-1.5 truncate text-[0.72rem] text-dusk">{track.artist}</span>
+              )}
+            </button>
+          ))}
+        </Shelf>
+      )}
+
+      {playlists.length > 0 && (
+        <Shelf title="Your playlists" onMore={onPlaylists}>
+          {playlists.map((playlist) => {
+            const cover = playlist.tracks.find((t) => t.artwork)?.artwork ?? null
+            return (
+              <button
+                key={playlist.id}
+                type="button"
+                onClick={onPlaylists}
+                className="group flex w-36 shrink-0 flex-col gap-2 rounded-lg text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+              >
+                <span className="relative aspect-square overflow-hidden rounded-lg bg-gradient-to-br from-signal/30 to-signal-deep/40 ring-1 ring-inset ring-white/10">
+                  {cover ? (
+                    <img src={cover} alt="" className="size-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                  ) : (
+                    <span className="grid size-full place-items-center text-chalk/80">
+                      <ListMusic aria-hidden className="size-6" />
+                    </span>
+                  )}
+                </span>
+                <span className="truncate text-[0.82rem] font-medium text-chalk">{playlist.name}</span>
+                <span className="-mt-1.5 truncate text-[0.72rem] text-dusk">
+                  {playlist.tracks.length} track{playlist.tracks.length === 1 ? '' : 's'}
+                </span>
+              </button>
+            )
+          })}
+        </Shelf>
+      )}
 
       {rooms.length > 0 && (
         <div>
@@ -925,6 +1006,35 @@ function RoomsContent({
           onJoin={onJoin}
         />
       )}
+    </div>
+  )
+}
+
+/** A titled horizontal shelf of cards — the streaming-app "row". */
+function Shelf({
+  title,
+  onMore,
+  children,
+}: {
+  title: string
+  onMore?: () => void
+  children: ReactNode
+}) {
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="font-display text-[1.05rem] font-semibold text-chalk">{title}</h2>
+        {onMore && (
+          <button
+            type="button"
+            onClick={onMore}
+            className="rounded-full text-[0.8rem] text-mist outline-none transition-colors hover:text-chalk focus-visible:underline"
+          >
+            See all
+          </button>
+        )}
+      </div>
+      <div className="scrollbar-none -mx-1 flex gap-3 overflow-x-auto px-1 pb-2">{children}</div>
     </div>
   )
 }
