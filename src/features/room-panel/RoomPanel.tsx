@@ -56,11 +56,11 @@ export function RoomPanel({
     <motion.aside
       /* Above the watch stage (135) so it stays usable while watching, below
          the hub's modal drawers (140), which are meant to take over. */
-      className="fixed inset-y-0 right-0 z-[138] flex flex-col border-l border-white/[0.08] bg-void/90 backdrop-blur-xl"
-      /* Full width where it has to cover the room, its own column where there
-         is space to sit beside it. Matches the breakpoint the hub uses to
-         decide whether to inset at all, so the two can never disagree. */
-      style={{ width: `min(100vw, ${PANEL_WIDTH_REM}rem)` }}
+      className="fixed inset-y-0 right-0 z-[138] flex w-full flex-col border-l border-white/[0.08] bg-void/90 backdrop-blur-xl sm:w-[21rem]"
+      /* Full width on a phone — a sliver of the screen behind is worse than a
+         clean takeover — and its own 21rem column once there is room to sit
+         beside the app. `PANEL_WIDTH_REM` keeps that in step with the inset the
+         hub reserves for it. */
       initial={{ x: '100%' }}
       animate={{ x: 0 }}
       exit={{ x: '100%' }}
