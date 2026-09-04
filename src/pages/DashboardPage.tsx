@@ -45,6 +45,7 @@ import { MusicDock } from '@/features/music/MusicDock'
 import { FullPlayer } from '@/features/music/FullPlayer'
 import { MusicProvider } from '@/features/music/MusicProvider'
 import { PlaylistCover } from '@/features/music/PlaylistCover'
+import { fromCatalog, useEnqueue } from '@/features/music/useEnqueue'
 import { useLibrary } from '@/features/music/useLibrary'
 import { CallInvite } from '@/features/room-panel/CallInvite'
 import { RoomPanel, PANEL_WIDTH_REM } from '@/features/room-panel/RoomPanel'
@@ -57,7 +58,7 @@ import { WatchInvite } from '@/features/watch/WatchInvite'
 import { WatchStage } from '@/features/watch/WatchStage'
 import { CreateRoomForm } from '@/features/dashboard/components/CreateRoomForm'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
-import { fetchPlaylists, fetchSuggestions } from '@/features/music/api'
+import { fetchPlaylists, fetchRecommendations, fetchSuggestions, type RecShelf } from '@/features/music/api'
 import type { LibraryTrack, Playlist } from '@/features/music/types'
 import { fetchPersonalRoom, fetchRoom, type Room, type RoomVisibility } from '@/features/rooms/api'
 import { usePresence, type Present } from '@/features/rooms/usePresence'
@@ -728,8 +729,10 @@ function HomeContent({
     { key: 'rooms', label: 'Rooms', hint: 'Listen together', icon: Users, onClick: onOpenRooms },
   ]
 
+  const { play } = useEnqueue()
   const [recent, setRecent] = useState<LibraryTrack[]>([])
   const [playlists, setPlaylists] = useState<Playlist[]>([])
+  const [recs, setRecs] = useState<RecShelf[]>([])
   useEffect(() => {
     let cancelled = false
     void fetchPersonalRoom()
@@ -739,6 +742,9 @@ function HomeContent({
           .catch(() => undefined)
         void fetchPlaylists(room.id)
           .then((p) => !cancelled && setPlaylists(p))
+          .catch(() => undefined)
+        void fetchRecommendations(room.id)
+          .then((shelves) => !cancelled && setRecs(shelves))
           .catch(() => undefined)
       })
       .catch(() => undefined)
@@ -807,6 +813,47 @@ function HomeContent({
           )
         })}
       </div>
+
+      {/* Made for you — recommendations from your own taste. Tapping a card
+          plays it, so this is a place to listen, not just to look. */}
+      {recs.length > 0 && (
+        <div className="space-y-7">
+          <h2 className="font-display text-[1.3rem] font-semibold tracking-[-0.015em] text-chalk">
+            Made for you
+          </h2>
+          {recs.map((shelf) => (
+            <Shelf key={shelf.id} title={shelf.title} subtitle={shelf.subtitle}>
+              {shelf.tracks.map((track) => (
+                <button
+                  key={track.id}
+                  type="button"
+                  onClick={() => void play(fromCatalog(track))}
+                  className="group flex w-36 shrink-0 flex-col gap-2 rounded-lg text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+                >
+                  <span className="relative aspect-square overflow-hidden rounded-lg bg-white/[0.05] ring-1 ring-inset ring-white/10">
+                    {track.artwork ? (
+                      <img
+                        src={track.artwork}
+                        alt=""
+                        className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <span className="grid size-full place-items-center text-dusk">
+                        <Disc3 aria-hidden className="size-6" />
+                      </span>
+                    )}
+                    <span className="absolute bottom-2 right-2 grid size-9 translate-y-1 place-items-center rounded-full bg-signal text-white opacity-0 shadow-lg transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100">
+                      <Play aria-hidden className="size-4 translate-x-px fill-current" />
+                    </span>
+                  </span>
+                  <span className="truncate text-[0.82rem] font-medium text-chalk">{track.title}</span>
+                  <span className="-mt-1.5 truncate text-[0.72rem] text-dusk">{track.artist}</span>
+                </button>
+              ))}
+            </Shelf>
+          ))}
+        </div>
+      )}
 
       {recent.length > 0 && (
         <Shelf title="Recently played" onMore={onListen}>
@@ -1212,17 +1259,22 @@ function ChannelRow({
 /** A titled horizontal shelf of cards — the streaming-app "row". */
 function Shelf({
   title,
+  subtitle,
   onMore,
   children,
 }: {
   title: string
+  subtitle?: string
   onMore?: () => void
   children: ReactNode
 }) {
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-display text-[1.05rem] font-semibold text-chalk">{title}</h2>
+      <div className="mb-3 flex items-end justify-between">
+        <div className="min-w-0">
+          <h2 className="font-display text-[1.05rem] font-semibold text-chalk">{title}</h2>
+          {subtitle && <p className="mt-0.5 text-[0.76rem] text-dusk">{subtitle}</p>}
+        </div>
         {onMore && (
           <button
             type="button"

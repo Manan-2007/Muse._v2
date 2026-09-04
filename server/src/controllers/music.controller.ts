@@ -3,7 +3,9 @@ import type { Request, Response } from 'express'
 import { z } from 'zod'
 
 import * as libraryModel from '../models/library.model.js'
+import * as userModel from '../models/user.model.js'
 import { lyricsFor } from '../services/lyrics.service.js'
+import { recommend } from '../services/recommendations.service.js'
 import * as trackModel from '../models/track.model.js'
 import { MUSIC_SOURCES } from '../services/music.service.js'
 import { assertMembership } from '../services/room.service.js'
@@ -452,6 +454,18 @@ export async function suggestions(req: Request, res: Response) {
        thing to listen to next is the classic tell of a fake recommender. */
     more: more.filter((result) => result.channel.trim() !== seedArtist).slice(0, 12),
   })
+}
+
+/**
+ * Made-for-you recommendations.
+ *
+ * Personal to whoever asks — built from this room's listening plus the asker's
+ * own sign-up picks — so two people in one room get their own. See the service.
+ */
+export async function recommendations(req: Request, res: Response) {
+  const roomId = await gate(req)
+  const picks = await userModel.favPicks(req.userId!)
+  res.json({ shelves: await recommend(roomId, req.userId!, picks.artists, picks.genres) })
 }
 
 const reorderBody = z.object({ ids: z.array(z.string()).max(500) })

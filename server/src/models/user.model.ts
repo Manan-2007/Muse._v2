@@ -57,6 +57,23 @@ export function markOnboarded(userId: string, genres: string[], artists: string[
   })
 }
 
+/** The taste picks made at sign-up, parsed — for recommendations. */
+export async function favPicks(userId: string): Promise<{ genres: string[]; artists: string[] }> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { favGenres: true, favArtists: true },
+  })
+  const parse = (raw: string | undefined): string[] => {
+    try {
+      const value = JSON.parse(raw ?? '[]')
+      return Array.isArray(value) ? value.filter((x): x is string => typeof x === 'string') : []
+    } catch {
+      return []
+    }
+  }
+  return { genres: parse(user?.favGenres), artists: parse(user?.favArtists) }
+}
+
 export function findByEmail(email: string) {
   return prisma.user.findUnique({ where: { email } })
 }

@@ -227,6 +227,20 @@ export function toggleLiked(roomId: string, track: LibraryTrack) {
   return api.post<{ liked: boolean; keys: string[] }>(`/rooms/${roomId}/music/liked`, track)
 }
 
+export type RecShelf = {
+  id: string
+  title: string
+  subtitle?: string
+  tracks: MusicSearchResult[]
+}
+
+/** Made-for-you shelves, built from this listener's taste. See the server. */
+export function fetchRecommendations(roomId: string) {
+  return api
+    .get<{ shelves: RecShelf[] }>(`/rooms/${roomId}/music/recommendations`)
+    .then((response) => response.shelves)
+}
+
 export function fetchSuggestions(roomId: string, artist?: string | null) {
   const query = artist ? `?artist=${encodeURIComponent(artist)}` : ''
   return api.get<{ history: LibraryTrack[]; more: TrackSearchResult[] }>(
