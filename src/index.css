@@ -111,6 +111,26 @@
     }
   }
 
+  /* Vertical marquees for the landing page's cover wall. Each column holds two
+     copies of its covers; translating by exactly half its height loops without
+     a seam. Up and down so adjacent columns drift against each other. */
+  @keyframes marquee-y-up {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(0, -50%, 0);
+    }
+  }
+  @keyframes marquee-y-down {
+    from {
+      transform: translate3d(0, -50%, 0);
+    }
+    to {
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
   /*
    * Ambient mesh drift. Each layer is a repeating radial-gradient tile on an
    * oversized element, translated by exactly one tile — so the loop is

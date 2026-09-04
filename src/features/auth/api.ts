@@ -48,6 +48,13 @@ export function submitOnboarding(input: { genres: string[]; artists: string[] })
   return api.post<{ user: User; roomId: string; count: number }>('/auth/onboarding', input)
 }
 
+export type ChartCover = { title: string; artist: string; artwork: string }
+
+/** Chart covers for the landing page's wall. Public — no sign-in needed. */
+export function fetchCharts() {
+  return api.get<{ covers: ChartCover[] }>('/charts').then((r) => r.covers)
+}
+
 export type ArtistCard = { name: string; photo: string | null }
 
 /** Artists to pick from in onboarding — the curated grid, or a search. */

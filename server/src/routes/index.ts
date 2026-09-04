@@ -20,5 +20,8 @@ apiRoutes.get('/ice', requireAuth, asyncHandler(watchController.ice))
 /* Onboarding's artist picker — the faces to choose from. */
 apiRoutes.get('/artists', requireAuth, asyncHandler(artistsController.artists))
 
+/* The landing page's cover wall. Public: it runs before anyone signs in. */
+apiRoutes.get('/charts', asyncHandler(artistsController.charts))
+
 apiRoutes.use('/auth', authRoutes)
 apiRoutes.use('/rooms', roomRoutes)
