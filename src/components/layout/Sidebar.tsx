@@ -11,6 +11,7 @@ import {
   Plus,
   Search,
   Settings,
+  Sparkles,
   Users,
 } from 'lucide-react'
 
@@ -20,7 +21,7 @@ import type { Playlist } from '@/features/music/types'
 import type { Room } from '@/features/rooms/api'
 import { cn } from '@/lib/utils'
 
-export type ShellView = 'home' | 'search' | 'library' | 'rooms'
+export type ShellView = 'home' | 'foryou' | 'search' | 'library' | 'rooms'
 export type LibrarySection = 'recent' | 'playlists' | 'artists' | 'songs' | 'liked'
 
 /**
@@ -43,6 +44,7 @@ export function Sidebar({
   activeRoomId,
   roomsLive = false,
   onHome,
+  onForYou,
   onSearch,
   onLibrary,
   onLiked,
@@ -63,6 +65,7 @@ export function Sidebar({
   activeRoomId: string | null
   roomsLive?: boolean
   onHome: () => void
+  onForYou: () => void
   onSearch: () => void
   onLibrary: (section: LibrarySection) => void
   onLiked: () => void
@@ -97,6 +100,7 @@ export function Sidebar({
 
       <nav className="scrollbar-none min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 pb-4">
         <NavRow icon={Home} label="Home" active={view === 'home'} onClick={onHome} />
+        <NavRow icon={Sparkles} label="For You" active={view === 'foryou'} onClick={onForYou} />
         <NavRow icon={Search} label="Search" active={view === 'search'} onClick={onSearch} />
 
         {/* Library — the four ways of holding music, folded away until wanted. */}

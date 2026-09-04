@@ -5,7 +5,7 @@ import { z } from 'zod'
 import * as libraryModel from '../models/library.model.js'
 import * as userModel from '../models/user.model.js'
 import { lyricsFor } from '../services/lyrics.service.js'
-import { recommend } from '../services/recommendations.service.js'
+import { playlistSuggestions, recommend, songRadio } from '../services/recommendations.service.js'
 import * as trackModel from '../models/track.model.js'
 import { MUSIC_SOURCES } from '../services/music.service.js'
 import { assertMembership } from '../services/room.service.js'
@@ -466,6 +466,21 @@ export async function recommendations(req: Request, res: Response) {
   const roomId = await gate(req)
   const picks = await userModel.favPicks(req.userId!)
   res.json({ shelves: await recommend(roomId, req.userId!, picks.artists, picks.genres) })
+}
+
+/** Songs to add to a playlist — the "recommended" strip at the bottom of one. */
+export async function suggestForPlaylist(req: Request, res: Response) {
+  const roomId = await gate(req)
+  res.json({ tracks: await playlistSuggestions(roomId, req.params.playlistId!) })
+}
+
+/** A song's radio — more like this one. */
+export async function similar(req: Request, res: Response) {
+  await gate(req)
+  const artist = typeof req.query.artist === 'string' ? req.query.artist.trim() : ''
+  const title = typeof req.query.title === 'string' ? req.query.title.trim() : ''
+  if (!title) throw HttpError.badRequest('A song is needed')
+  res.json({ tracks: await songRadio(artist, title) })
 }
 
 const reorderBody = z.object({ ids: z.array(z.string()).max(500) })

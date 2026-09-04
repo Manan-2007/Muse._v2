@@ -218,6 +218,35 @@ export function recordPlay(roomId: string, userId: string | null, track: TrackIn
 }
 
 /**
+ * The room's most-played songs — the "on repeat" list.
+ *
+ * Counted from real play history and kept only when a song has genuinely been
+ * returned to (played at least twice), so this is habit, not just history.
+ */
+export async function mostPlayed(roomId: string, limit = 12) {
+  const rows = await prisma.playHistory.findMany({
+    where: { roomId },
+    orderBy: { playedAt: 'desc' },
+    take: 400,
+    select: trackFields,
+  })
+
+  const byKey = new Map<string, { track: (typeof rows)[number]; count: number }>()
+  for (const track of rows) {
+    const key = `${track.source}:${track.ref}`
+    const seen = byKey.get(key)
+    if (seen) seen.count += 1
+    else byKey.set(key, { track, count: 1 })
+  }
+
+  return [...byKey.values()]
+    .filter((e) => e.count >= 2)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit)
+    .map((e) => e.track)
+}
+
+/**
  * What the room has actually played, most recent first, de-duplicated.
  *
  * Reads real play history — songs the room loaded or advanced to — not the

@@ -7,12 +7,16 @@ import {
   ListMusic,
   Pencil,
   Play,
+  Plus,
   Trash2,
 } from 'lucide-react'
 
+import { fetchPlaylistSuggestions } from '@/features/music/api'
+import { useMusic } from '@/features/music/MusicContext'
 import { PlaylistCover } from '@/features/music/PlaylistCover'
 import { TrackRow } from '@/features/music/TrackRow'
-import { formatTime, type LibraryTrack, type Playlist } from '@/features/music/types'
+import { formatTime, type LibraryTrack, type MusicSearchResult, type Playlist } from '@/features/music/types'
+import { fromCatalog, useEnqueue } from '@/features/music/useEnqueue'
 import type { useLibrary } from '@/features/music/useLibrary'
 import { downscaleImage } from '@/features/settings/downscaleImage'
 import { cn } from '@/lib/utils'
@@ -38,10 +42,38 @@ export function PlaylistDetail({
   rowProps: RowProps
   onBack: () => void
 }) {
+  const { roomId } = useMusic()
+  const { ensureResolved, play } = useEnqueue()
+
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(playlist.name)
   const [description, setDescription] = useState(playlist.description ?? '')
   const coverPicker = useRef<HTMLInputElement>(null)
+
+  /* Recommended songs to add — similar to what's already in here, refreshed as
+     the playlist grows. See the server's playlistSuggestions. */
+  const [suggestions, setSuggestions] = useState<MusicSearchResult[]>([])
+  const [added, setAdded] = useState<Set<string>>(new Set())
+  const trackCount = playlist.tracks.length
+  useEffect(() => {
+    if (!roomId || trackCount === 0) {
+      setSuggestions([])
+      return
+    }
+    let cancelled = false
+    void fetchPlaylistSuggestions(roomId, playlist.id)
+      .then((s) => !cancelled && setSuggestions(s))
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [roomId, playlist.id, trackCount])
+
+  const addSuggestion = async (song: MusicSearchResult) => {
+    setAdded((prev) => new Set(prev).add(song.id))
+    const real = await ensureResolved(fromCatalog(song))
+    await library.addToPlaylist(playlist.id, real)
+  }
 
   /* Keep the drafts in step if the playlist changes underneath (a song added
      from elsewhere, say) while not editing. */
@@ -265,6 +297,69 @@ export function PlaylistDetail({
               removeLabel="Remove from this playlist"
             />
           ))}
+        </div>
+      )}
+
+      {/* Recommended songs to add — Spotify's strip at the foot of a playlist,
+          in the playlist's own spirit. */}
+      {suggestions.length > 0 && (
+        <div className="mt-2 border-t border-white/[0.07] pt-6">
+          <h3 className="font-display text-[1.1rem] font-semibold tracking-[-0.015em] text-chalk">
+            Recommended
+          </h3>
+          <p className="mt-0.5 text-[0.78rem] text-dusk">Based on what&apos;s in this playlist</p>
+          <div className="mt-4 flex flex-col gap-0.5">
+            {suggestions.map((song) => {
+              const isAdded = added.has(song.id)
+              return (
+                <div
+                  key={song.id}
+                  className="group/sug flex items-center gap-3 rounded-xl px-2.5 py-2 transition-colors hover:bg-white/[0.04]"
+                >
+                  <button
+                    type="button"
+                    onClick={() => void play(fromCatalog(song))}
+                    className="relative size-11 shrink-0 overflow-hidden rounded-lg bg-white/[0.05] outline-none ring-1 ring-inset ring-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+                    aria-label={`Play ${song.title}`}
+                  >
+                    {song.artwork ? (
+                      <img src={song.artwork} alt="" className="size-full object-cover" loading="lazy" />
+                    ) : (
+                      <span className="grid size-full place-items-center text-dusk">
+                        <ListMusic aria-hidden className="size-4" />
+                      </span>
+                    )}
+                    <span className="absolute inset-0 grid place-items-center bg-void/60 opacity-0 transition-opacity group-hover/sug:opacity-100">
+                      <Play aria-hidden className="size-4 translate-x-px fill-chalk text-chalk" />
+                    </span>
+                  </button>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[0.86rem] text-chalk">{song.title}</span>
+                    <span className="block truncate text-[0.74rem] text-dusk">{song.artist}</span>
+                  </span>
+                  {song.duration != null && (
+                    <span className="hidden shrink-0 font-mono text-[0.7rem] tabular-nums text-dusk sm:block">
+                      {formatTime(song.duration)}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => !isAdded && void addSuggestion(song)}
+                    disabled={isAdded}
+                    aria-label={isAdded ? 'Added' : `Add ${song.title}`}
+                    className={cn(
+                      'grid size-8 shrink-0 place-items-center rounded-full border outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal',
+                      isAdded
+                        ? 'border-transparent text-emerald-400'
+                        : 'border-white/20 text-chalk hover:border-signal/60 hover:bg-signal/10',
+                    )}
+                  >
+                    {isAdded ? <Check aria-hidden className="size-4" /> : <Plus aria-hidden className="size-4" />}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
     </div>

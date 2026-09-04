@@ -241,6 +241,24 @@ export function fetchRecommendations(roomId: string) {
     .then((response) => response.shelves)
 }
 
+/** Songs to add to a playlist — similar to what's already in it. */
+export function fetchPlaylistSuggestions(roomId: string, playlistId: string) {
+  return api
+    .get<{ tracks: MusicSearchResult[] }>(
+      `/rooms/${roomId}/music/playlists/${playlistId}/suggestions`,
+    )
+    .then((response) => response.tracks)
+}
+
+/** A song's radio — more songs like this one. */
+export function fetchSimilar(roomId: string, artist: string | null, title: string) {
+  const params = new URLSearchParams({ title })
+  if (artist) params.set('artist', artist)
+  return api
+    .get<{ tracks: MusicSearchResult[] }>(`/rooms/${roomId}/music/similar?${params}`)
+    .then((response) => response.tracks)
+}
+
 export function fetchSuggestions(roomId: string, artist?: string | null) {
   const query = artist ? `?artist=${encodeURIComponent(artist)}` : ''
   return api.get<{ history: LibraryTrack[]; more: TrackSearchResult[] }>(

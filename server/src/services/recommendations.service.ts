@@ -97,6 +97,58 @@ async function tasteProfile(roomId: string, userId: string, favArtists: string[]
   return { seedArtists, known }
 }
 
+/** A played/library track in the shape the recommendation cards use. Its ref
+    is real and playable, so the id carries it straight through (no `cat:`). */
+function toRec(t: {
+  source: string
+  ref: string
+  title: string
+  artist: string | null
+  album: string | null
+  artwork: string | null
+  duration: number | null
+}): MusicSearchResult {
+  return {
+    id: t.ref,
+    title: t.title,
+    artist: t.artist ?? '',
+    album: t.album,
+    artwork: t.artwork,
+    duration: t.duration,
+    q: '',
+  }
+}
+
+/** The genre iTunes files an artist under — for inferring taste from listening. */
+async function primaryGenre(artist: string): Promise<string | null> {
+  try {
+    const url = new URL('https://itunes.apple.com/search')
+    url.searchParams.set('term', artist)
+    url.searchParams.set('entity', 'song')
+    url.searchParams.set('limit', '1')
+    const response = await fetch(url, { signal: timeout() })
+    if (!response.ok) return null
+    const body = (await response.json()) as { results?: { primaryGenreName?: string }[] }
+    return body.results?.[0]?.primaryGenreName ?? null
+  } catch {
+    return null
+  }
+}
+
+/** Genres to recommend from — inferred from who you play, plus your picks. */
+async function tasteGenres(topArtists: string[], favGenres: string[]): Promise<string[]> {
+  const inferred = await Promise.all(topArtists.slice(0, 2).map((a) => primaryGenre(a)))
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const g of [...favGenres, ...inferred]) {
+    const clean = g?.trim()
+    if (!clean || seen.has(clean.toLowerCase())) continue
+    seen.add(clean.toLowerCase())
+    out.push(clean)
+  }
+  return out
+}
+
 /** An artist's catalogue songs, minus anything already known. */
 async function freshTracks(
   artist: string,
@@ -129,8 +181,22 @@ export async function recommend(
 ): Promise<RecShelf[]> {
   const { seedArtists, known } = await tasteProfile(roomId, userId, favArtists)
 
+  const shelves: RecShelf[] = []
+
+  /* On repeat — the songs actually returned to. Real refs, plays straight. */
+  const repeat = (await libraryModel.mostPlayed(roomId, 12)).filter((t) => t.source === 'youtube')
+  if (repeat.length >= 4) {
+    shelves.push({
+      id: 'onrepeat',
+      title: 'On repeat',
+      subtitle: 'The songs you keep coming back to',
+      tracks: repeat.map(toRec),
+    })
+  }
+
   /* Nothing to go on: hand back what's popular rather than an empty page. */
   if (seedArtists.length === 0) {
+    if (shelves.length > 0) return shelves
     const covers = await topCovers()
     const popular: MusicSearchResult[] = covers.slice(0, 14).map((c, i) => ({
       id: `cat:pop:${i}:${c.title.toLowerCase()}`,
@@ -144,7 +210,6 @@ export async function recommend(
     return popular.length ? [{ id: 'popular', title: 'Popular right now', tracks: popular }] : []
   }
 
-  const shelves: RecShelf[] = []
   const top = seedArtists[0]!
 
   /* Discovery — the whole point. Related artists to your top one, a few songs
@@ -176,8 +241,10 @@ export async function recommend(
     }
   }
 
-  /* One genre shelf, if a genre was ever chosen — songs in it, fresh. */
-  const genre = favGenres[0]?.trim()
+  /* One genre shelf, from the genre you actually lean on (inferred from your
+     top artists) as much as from what you picked at sign-up. */
+  const genres = await tasteGenres(seedArtists, favGenres)
+  const genre = genres[0]
   if (genre) {
     const inGenre = await freshTracks(genre, known, 12)
     if (inGenre.length >= 4) {
@@ -186,4 +253,62 @@ export async function recommend(
   }
 
   return shelves
+}
+
+/**
+ * Songs to add to a playlist — the "recommended" strip Spotify shows at the
+ * bottom of one.
+ *
+ * Reads the playlist's own artists, follows them out through the related graph,
+ * and offers songs by those neighbours that aren't already in the playlist —
+ * so it extends the playlist in its own spirit rather than at random.
+ */
+export async function playlistSuggestions(
+  roomId: string,
+  playlistId: string,
+): Promise<MusicSearchResult[]> {
+  const playlist = await libraryModel.findPlaylist(roomId, playlistId)
+  if (!playlist || playlist.tracks.length === 0) return []
+
+  const weight = new Map<string, number>()
+  const known = new Set<string>()
+  for (const t of playlist.tracks) {
+    known.add(songKey(t))
+    const artist = t.artist?.trim()
+    if (artist) weight.set(artist, (weight.get(artist) ?? 0) + 1)
+  }
+
+  const seeds = [...weight.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n).slice(0, 2)
+  if (seeds.length === 0) return []
+
+  /* Related artists to the playlist's core, a couple of songs each. */
+  const relatedNames = [...new Set((await Promise.all(seeds.map(relatedArtists))).flat())].slice(0, 8)
+  const lists = await Promise.all(relatedNames.map((name) => freshTracks(name, known, 2)))
+  const out: MusicSearchResult[] = []
+  for (let i = 0; i < 2; i += 1) for (const list of lists) if (list[i]) out.push(list[i]!)
+
+  /* Top up from the playlist's own artists if related came up short. */
+  if (out.length < 8) {
+    for (const seed of seeds) {
+      for (const song of await freshTracks(seed, known, 6)) out.push(song)
+      if (out.length >= 12) break
+    }
+  }
+
+  return out.slice(0, 12)
+}
+
+/**
+ * A song's "radio" — more like this one.
+ *
+ * The song's artist plus their related artists, a few tracks each, so it plays
+ * on in the same vein. Used by "more like this" on a track.
+ */
+export async function songRadio(artist: string, title: string): Promise<MusicSearchResult[]> {
+  const known = new Set<string>([`${artist.toLowerCase()}|${title.toLowerCase()}`])
+  const names = [artist, ...(await relatedArtists(artist))].slice(0, 7)
+  const lists = await Promise.all(names.map((name) => freshTracks(name, known, 3)))
+  const out: MusicSearchResult[] = []
+  for (let i = 0; i < 3; i += 1) for (const list of lists) if (list[i]) out.push(list[i]!)
+  return out.slice(0, 20)
 }
