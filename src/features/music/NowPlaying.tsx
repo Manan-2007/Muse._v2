@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronDown, Heart, ListMusic, MessagesSquare, Mic, MicOff, Quote } from 'lucide-react'
 
 import { CircularVisualizer } from '@/features/music/CircularVisualizer'
@@ -195,17 +196,22 @@ export function NowPlaying({
         </span>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-8 lg:px-8">
-        <div
+      {/* When the words come up, this whole left column — record, title AND
+          transport — glides left and the lyrics rise beside it, the way Apple
+          Music's player splits. No box around the words; they sit on the page. */}
+      <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row lg:items-stretch lg:gap-6 lg:px-6">
+        <motion.div
+          layout
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           className={cn(
-            'flex min-h-0 flex-col items-center justify-center gap-7 px-6',
-            showLyrics ? 'hidden lg:flex lg:w-[44%] lg:shrink-0 lg:px-0' : 'flex-1',
+            'flex min-h-0 flex-col items-center justify-center gap-6 px-6 pb-6',
+            showLyrics ? 'hidden lg:flex lg:w-[46%] lg:shrink-0 lg:px-2' : 'flex-1',
           )}
         >
           {/* The record, ringed by the beat meter. The meter's canvas is drawn
               larger than the disc and overflows around it, so the bars stand in
               the open space just outside the rim rather than on top of it. */}
-          <div className="relative aspect-square w-[min(76vw,min(28rem,42vh))]">
+          <div className="relative aspect-square w-[min(70vw,min(24rem,38vh))]">
             <CircularVisualizer
               source={analyserSource}
               playing={snapshot.playing}
@@ -266,62 +272,72 @@ export function NowPlaying({
               </div>
             )}
           </div>
-        </div>
 
-        {showLyrics && (
-          <div className="flex min-h-0 flex-1 flex-col">
-            <LyricsPanel
-              lyrics={lyrics}
-              loading={lyricsLoading}
+          {/* Transport — inside the left column, so it travels left with the
+              record when the lyrics open instead of staying stranded centre. */}
+          <div className="flex w-full max-w-md flex-col items-center gap-3">
+            {(error ?? singalong.error) && (
+              <p
+                role="alert"
+                className="max-w-lg rounded-xl border border-signal/25 bg-signal/[0.08] px-4 py-3 text-center text-[0.82rem] leading-relaxed text-signal-bright"
+              >
+                {error ?? singalong.error}
+              </p>
+            )}
+
+            {needsGesture && (
+              <button
+                type="button"
+                onClick={acknowledgeGesture}
+                className="rounded-full bg-chalk px-5 py-2.5 text-[0.85rem] font-medium text-void outline-none transition-transform hover:scale-[1.03] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-signal"
+              >
+                Tap to join playback
+              </button>
+            )}
+
+            <MusicControls
+              snapshot={snapshot}
+              position={position}
+              duration={duration}
+              shuffle={shuffle}
+              repeat={repeat}
+              volume={volume}
+              onPlayPause={() =>
+                send('music:control', {
+                  action: snapshot.playing ? 'pause' : 'play',
+                  position: handle ? handle.getPosition() : undefined,
+                })
+              }
               onSeek={(seconds) => seekTo(seconds)}
+              onNext={next}
+              onPrevious={previous}
+              onToggleShuffle={() => setShuffle(!shuffle)}
+              onToggleRepeat={() => setRepeat(!repeat)}
+              onVolume={setVolume}
+              disabled={false}
             />
           </div>
-        )}
-      </div>
+        </motion.div>
 
-      <div className="flex shrink-0 flex-col items-center gap-4 px-6 pb-7">
-        {(error ?? singalong.error) && (
-          <p
-            role="alert"
-            className="max-w-lg rounded-xl border border-signal/25 bg-signal/[0.08] px-4 py-3 text-center text-[0.82rem] leading-relaxed text-signal-bright"
-          >
-            {error ?? singalong.error}
-          </p>
-        )}
-
-        {needsGesture && (
-          <button
-            type="button"
-            onClick={acknowledgeGesture}
-            className="rounded-full bg-chalk px-5 py-2.5 text-[0.85rem] font-medium text-void outline-none transition-transform hover:scale-[1.03] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-signal"
-          >
-            Tap to join playback
-          </button>
-        )}
-
-        <div className="w-full max-w-md">
-          <MusicControls
-            snapshot={snapshot}
-            position={position}
-            duration={duration}
-            shuffle={shuffle}
-            repeat={repeat}
-            volume={volume}
-            onPlayPause={() =>
-              send('music:control', {
-                action: snapshot.playing ? 'pause' : 'play',
-                position: handle ? handle.getPosition() : undefined,
-              })
-            }
-            onSeek={(seconds) => seekTo(seconds)}
-            onNext={next}
-            onPrevious={previous}
-            onToggleShuffle={() => setShuffle(!shuffle)}
-            onToggleRepeat={() => setRepeat(!repeat)}
-            onVolume={setVolume}
-            disabled={false}
-          />
-        </div>
+        {/* The words, on the right — plain text on the page, no card. */}
+        <AnimatePresence>
+          {showLyrics && (
+            <motion.div
+              key="lyrics"
+              className="flex min-h-0 flex-1 flex-col pb-6"
+              initial={{ opacity: 0, x: 36 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 36 }}
+              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <LyricsPanel
+                lyrics={lyrics}
+                loading={lyricsLoading}
+                onSeek={(seconds) => seekTo(seconds)}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )

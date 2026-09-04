@@ -15,8 +15,8 @@
  * holding still.
  */
 export function MuseBackdrop({
-  base = 'color-mix(in oklab, var(--color-signal) 34%, black)',
-  accent = 'color-mix(in oklab, var(--color-glow-cool) 26%, black)',
+  base = 'var(--backdrop-base, color-mix(in oklab, var(--color-signal) 34%, black))',
+  accent = 'var(--backdrop-accent, color-mix(in oklab, var(--color-glow-cool) 26%, black))',
 }: {
   base?: string
   accent?: string

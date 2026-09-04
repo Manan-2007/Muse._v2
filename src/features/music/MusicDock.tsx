@@ -57,11 +57,13 @@ export function MusicDock({
           transition={{ duration: 0.4, ease: EASE }}
         >
           <div
-            className="pointer-events-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-white/12 shadow-[0_18px_50px_-18px_rgba(0,0,0,0.9)]"
+            className="pointer-events-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-white/12 shadow-[0_18px_50px_-18px_rgba(0,0,0,0.55)]"
             style={{
+              /* Themed base so the bar is a light card in light mode (the song
+                 name was black-on-black before), tinted by the cover either way. */
               background: palette
-                ? `color-mix(in oklab, ${palette.base} 30%, #101014)`
-                : '#101014',
+                ? `color-mix(in oklab, ${palette.base} 26%, var(--dock-base, #101014))`
+                : 'var(--dock-base, #101014)',
             }}
           >
             {/* The playhead, along the top edge. */}

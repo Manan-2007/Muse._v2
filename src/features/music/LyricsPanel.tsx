@@ -158,7 +158,7 @@ export function LyricsPanel({
 
   if (lyrics.kind === 'plain') {
     return (
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-3xl bg-white/[0.035] ring-1 ring-inset ring-white/[0.07] backdrop-blur-2xl backdrop-saturate-150">
+      <div className="relative min-h-0 flex-1 overflow-hidden">
         <div
           ref={scroller}
           className="scrollbar-none h-full overflow-y-auto overscroll-contain px-6 py-10 sm:px-10"
@@ -183,15 +183,8 @@ export function LyricsPanel({
   }
 
   return (
-    <div
-      className={cn(
-        'relative min-h-0 flex-1 overflow-hidden rounded-3xl',
-        /* Glass rather than a panel. The record behind it carries the colour
-           of the sleeve, and letting that through is what keeps this reading
-           as part of the page instead of a card dropped on top of it. */
-        'bg-white/[0.035] ring-1 ring-inset ring-white/[0.07] backdrop-blur-2xl backdrop-saturate-150',
-      )}
-    >
+    <div className="relative min-h-0 flex-1 overflow-hidden">
+
       <div
         ref={scroller}
         className="scrollbar-none h-full overflow-y-auto overscroll-contain px-6 sm:px-10"

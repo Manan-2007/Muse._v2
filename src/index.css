@@ -1464,6 +1464,12 @@ body::-webkit-scrollbar {
      the cover and almost no vignette, so it reads as light, not a dark stage. */
   --player-wash: rgba(244, 243, 239, 0.62);
   --player-vignette: rgba(0, 0, 0, 0.04);
+  /* The now-playing bar — a light card in light mode, not black on black. */
+  --dock-base: #ffffff;
+  /* Ambient backdrop blooms: soft brand colours over white, so light mode is
+     airy and alive rather than a grey inversion. */
+  --backdrop-base: color-mix(in oklab, var(--color-signal) 40%, white);
+  --backdrop-accent: color-mix(in oklab, #3b5bff 34%, white);
 }
 
 :root[data-theme='light'] {
