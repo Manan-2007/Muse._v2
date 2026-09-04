@@ -24,6 +24,8 @@ const EASE = [0.16, 1, 0.3, 1] as const
 export function RoomPanel({
   chat,
   call,
+  roomName,
+  here,
   poppedOut,
   onPopOut,
   selfId,
@@ -32,6 +34,9 @@ export function RoomPanel({
 }: {
   chat: ReturnType<typeof useChat>
   call: ReturnType<typeof useMeshCall>
+  roomName: string
+  /** How many people are in the room right now, for the header's live count. */
+  here: number
   poppedOut: string | null
   onPopOut: (who: string | null) => void
   selfId: string | undefined
@@ -62,14 +67,22 @@ export function RoomPanel({
       transition={{ duration: 0.45, ease: EASE }}
     >
       <header className="flex items-center justify-between gap-2 border-b border-white/[0.07] px-4 py-3">
-        <h2 className="font-display text-[0.95rem] font-semibold tracking-[-0.015em] text-chalk">
-          Room
-        </h2>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span aria-hidden className="size-1.5 shrink-0 animate-signal-pulse rounded-full bg-signal" />
+          <div className="min-w-0">
+            <h2 className="truncate font-display text-[0.95rem] font-semibold tracking-[-0.015em] text-chalk">
+              {roomName}
+            </h2>
+            <p className="text-[0.66rem] uppercase tracking-[0.16em] text-dusk">
+              {here <= 1 ? 'Just you' : `${here} here`}
+            </p>
+          </div>
+        </div>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close panel"
-          className="grid size-8 place-items-center rounded-full text-mist outline-none transition-colors hover:bg-white/10 hover:text-chalk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+          className="grid size-8 shrink-0 place-items-center rounded-full text-mist outline-none transition-colors hover:bg-white/10 hover:text-chalk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
         >
           <PanelRightClose aria-hidden className="size-4" />
         </button>

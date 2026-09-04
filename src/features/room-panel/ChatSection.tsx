@@ -78,7 +78,15 @@ export function ChatSection({
                   className={cn('flex flex-col', mine ? 'items-end' : 'items-start', fresh && 'mt-2.5')}
                 >
                   {fresh && (
-                    <span className="mb-1 flex items-baseline gap-2 px-1">
+                    <span className="mb-1 flex items-center gap-2 px-1">
+                      {!mine && (
+                        <span
+                          aria-hidden
+                          className="grid size-5 shrink-0 place-items-center rounded-full bg-gradient-to-br from-signal to-signal-deep text-[0.55rem] font-semibold text-white"
+                        >
+                          {message.author.name.slice(0, 1).toUpperCase()}
+                        </span>
+                      )}
                       <span className="text-[0.72rem] font-semibold text-chalk">
                         {mine ? 'You' : message.author.name}
                       </span>

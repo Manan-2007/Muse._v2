@@ -653,6 +653,8 @@ export function DashboardPage() {
             key="room-panel"
             chat={chat}
             call={call}
+            roomName={activeRoom?.name ?? 'Room'}
+            here={present.length}
             poppedOut={poppedOut}
             onPopOut={(who) => setPoppedOut((current) => (current === who ? null : who))}
             selfId={user?.id}
