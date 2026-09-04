@@ -21,7 +21,7 @@ import type { Playlist } from '@/features/music/types'
 import type { Room } from '@/features/rooms/api'
 import { cn } from '@/lib/utils'
 
-export type ShellView = 'home' | 'foryou' | 'search' | 'library' | 'rooms'
+export type ShellView = 'home' | 'foryou' | 'search' | 'library' | 'rooms' | 'profile'
 export type LibrarySection = 'recent' | 'playlists' | 'artists' | 'songs' | 'liked'
 
 /**
@@ -53,6 +53,7 @@ export function Sidebar({
   onOpenRooms,
   onSelectRoom,
   onCreateRoom,
+  onProfile,
   onOpenSettings,
   onSignOut,
   className,
@@ -74,6 +75,7 @@ export function Sidebar({
   onOpenRooms: () => void
   onSelectRoom: (roomId: string) => void
   onCreateRoom: () => void
+  onProfile: () => void
   onOpenSettings: () => void
   onSignOut: () => void
   className?: string
@@ -244,21 +246,34 @@ export function Sidebar({
         </div>
       </nav>
 
-      {/* Who you are, and the way to settings. */}
-      <div className="flex shrink-0 items-center gap-2.5 border-t border-white/[0.07] px-3 py-3">
-        <span
-          aria-hidden
-          className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-signal to-signal-deep text-[0.8rem] font-semibold text-white"
-        >
-          {user?.avatar ? (
-            <img src={user.avatar} alt="" className="size-full object-cover" />
-          ) : (
-            user?.name.slice(0, 1).toUpperCase()
+      {/* Who you are — tap to see your taste — and the way to settings. */}
+      <div className="flex shrink-0 items-center gap-1 border-t border-white/[0.07] px-2 py-3">
+        <button
+          type="button"
+          onClick={onProfile}
+          aria-current={view === 'profile' ? 'page' : undefined}
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-1.5 py-1 text-left outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal',
+            view === 'profile' ? 'bg-white/[0.07]' : 'hover:bg-white/[0.05]',
           )}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-[0.82rem] font-medium text-chalk">
-          {user?.name ?? 'You'}
-        </span>
+        >
+          <span
+            aria-hidden
+            className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-signal to-signal-deep text-[0.8rem] font-semibold text-white"
+          >
+            {user?.avatar ? (
+              <img src={user.avatar} alt="" className="size-full object-cover" />
+            ) : (
+              user?.name.slice(0, 1).toUpperCase()
+            )}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[0.82rem] font-medium text-chalk">
+              {user?.name ?? 'You'}
+            </span>
+            <span className="block text-[0.7rem] text-dusk">View your taste</span>
+          </span>
+        </button>
         <button
           type="button"
           onClick={onOpenSettings}

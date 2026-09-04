@@ -217,6 +217,16 @@ export function recordPlay(roomId: string, userId: string | null, track: TrackIn
   })
 }
 
+/** Raw play rows, newest first — the basis for listening stats. */
+export function playRows(roomId: string, limit = 1500) {
+  return prisma.playHistory.findMany({
+    where: { roomId },
+    orderBy: { playedAt: 'desc' },
+    take: limit,
+    select: trackFields,
+  })
+}
+
 /**
  * The room's most-played songs — the "on repeat" list.
  *

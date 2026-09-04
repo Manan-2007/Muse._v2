@@ -57,6 +57,7 @@ import { useWatchPulse } from '@/features/watch/useWatchPulse'
 import { WatchInvite } from '@/features/watch/WatchInvite'
 import { WatchStage } from '@/features/watch/WatchStage'
 import { CreateRoomForm } from '@/features/dashboard/components/CreateRoomForm'
+import { ProfilePage } from '@/features/profile/ProfilePage'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
 import { fetchPlaylists, fetchSuggestions } from '@/features/music/api'
 import type { LibraryTrack, Playlist } from '@/features/music/types'
@@ -331,6 +332,10 @@ export function DashboardPage() {
     setView('foryou')
     setDrawerOpen(false)
   }, [])
+  const goProfile = useCallback(() => {
+    setView('profile')
+    setDrawerOpen(false)
+  }, [])
   const goSearch = useCallback(() => {
     setView('search')
     setLeftMusic(false)
@@ -412,6 +417,7 @@ export function DashboardPage() {
       onOpenRooms={goRooms}
       onSelectRoom={enterRoom}
       onCreateRoom={goRooms}
+      onProfile={goProfile}
       onOpenSettings={() => setPanel('settings')}
       onSignOut={() => void signOut()}
     />
@@ -477,6 +483,14 @@ export function DashboardPage() {
                         onOpenRooms={goRooms}
                         onEnterRoom={enterRoom}
                       />
+                    </div>
+                  </div>
+                )}
+
+                {view === 'profile' && (
+                  <div className="px-5 pb-40 pt-4 sm:px-8">
+                    <div className="mx-auto w-full max-w-4xl">
+                      <ProfilePage />
                     </div>
                   </div>
                 )}

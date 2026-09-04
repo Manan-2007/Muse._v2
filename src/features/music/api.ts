@@ -250,6 +250,19 @@ export function fetchPlaylistSuggestions(roomId: string, playlistId: string) {
     .then((response) => response.tracks)
 }
 
+export type TasteStats = {
+  totalPlays: number
+  totalMinutes: number
+  topArtists: { name: string; count: number }[]
+  topSongs: { title: string; artist: string | null; artwork: string | null; count: number }[]
+  genres: { genre: string; count: number }[]
+}
+
+/** Listening stats — the "your taste" / Wrapped view. */
+export function fetchStats(roomId: string) {
+  return api.get<TasteStats>(`/rooms/${roomId}/music/stats`)
+}
+
 /** A song's radio — more songs like this one. */
 export function fetchSimilar(roomId: string, artist: string | null, title: string) {
   const params = new URLSearchParams({ title })

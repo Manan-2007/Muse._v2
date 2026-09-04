@@ -6,6 +6,7 @@ import * as libraryModel from '../models/library.model.js'
 import * as userModel from '../models/user.model.js'
 import { lyricsFor } from '../services/lyrics.service.js'
 import { playlistSuggestions, recommend, songRadio } from '../services/recommendations.service.js'
+import { taste } from '../services/stats.service.js'
 import * as trackModel from '../models/track.model.js'
 import { MUSIC_SOURCES } from '../services/music.service.js'
 import { assertMembership } from '../services/room.service.js'
@@ -466,6 +467,12 @@ export async function recommendations(req: Request, res: Response) {
   const roomId = await gate(req)
   const picks = await userModel.favPicks(req.userId!)
   res.json({ shelves: await recommend(roomId, req.userId!, picks.artists, picks.genres) })
+}
+
+/** Listening stats — the "your taste" view. */
+export async function stats(req: Request, res: Response) {
+  const roomId = await gate(req)
+  res.json(await taste(roomId))
 }
 
 /** Songs to add to a playlist — the "recommended" strip at the bottom of one. */

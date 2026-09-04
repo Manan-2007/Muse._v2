@@ -43,6 +43,7 @@ roomRoutes.post('/:id/music/resolve', asyncHandler(musicController.resolve))
 roomRoutes.post('/:id/music/resolve-music', asyncHandler(musicController.resolveMusic))
 roomRoutes.get('/:id/music/recommendations', asyncHandler(musicController.recommendations))
 roomRoutes.get('/:id/music/similar', asyncHandler(musicController.similar))
+roomRoutes.get('/:id/music/stats', asyncHandler(musicController.stats))
 roomRoutes.get(
   '/:id/music/playlists/:playlistId/suggestions',
   asyncHandler(musicController.suggestForPlaylist),
