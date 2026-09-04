@@ -1,5 +1,6 @@
 import { Router } from 'express'
 
+import * as artistsController from '../controllers/artists.controller.js'
 import * as watchController from '../controllers/watch.controller.js'
 import { asyncHandler } from '../middleware/asyncHandler.js'
 import { requireAuth } from '../middleware/requireAuth.js'
@@ -15,6 +16,9 @@ apiRoutes.get('/health', (_req, res) => {
 /* Not room-scoped: the same relay serves every call, and the client needs it
    before it has picked a room. */
 apiRoutes.get('/ice', requireAuth, asyncHandler(watchController.ice))
+
+/* Onboarding's artist picker — the faces to choose from. */
+apiRoutes.get('/artists', requireAuth, asyncHandler(artistsController.artists))
 
 apiRoutes.use('/auth', authRoutes)
 apiRoutes.use('/rooms', roomRoutes)

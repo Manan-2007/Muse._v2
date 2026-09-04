@@ -47,3 +47,11 @@ export function fetchMe() {
 export function submitOnboarding(input: { genres: string[]; artists: string[] }) {
   return api.post<{ user: User; roomId: string; count: number }>('/auth/onboarding', input)
 }
+
+export type ArtistCard = { name: string; photo: string | null }
+
+/** Artists to pick from in onboarding — the curated grid, or a search. */
+export function fetchArtists(query?: string) {
+  const q = query?.trim() ? `?q=${encodeURIComponent(query.trim())}` : ''
+  return api.get<{ artists: ArtistCard[] }>(`/artists${q}`).then((r) => r.artists)
+}
