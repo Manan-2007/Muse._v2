@@ -59,30 +59,43 @@ export function CoverAmbience({
           : 'bg-void',
       )}
     >
-      {/* The record itself, blurred into the wall behind it — V1's move. Sits
-          under the colour blooms so the two read as one field of light. */}
+      {/* The record itself, blurred and scaled to fill — Apple Music's full
+          player, where the artwork *is* the room. A slow Ken Burns keeps it
+          alive without ever reading as motion. */}
       {artwork && (
         <div
           className={cn(
-            'absolute inset-0 scale-125 bg-cover bg-center',
-            translucent ? 'opacity-25 blur-[72px]' : 'opacity-55 blur-[56px]',
+            'absolute inset-0 bg-cover bg-center',
+            translucent ? 'scale-125 opacity-25 blur-[72px]' : 'scale-[1.35] opacity-60 blur-[52px]',
           )}
-          style={{ backgroundImage: `url("${artwork}")` }}
+          style={{
+            backgroundImage: `url("${artwork}")`,
+            animation: translucent ? undefined : 'music-drift 46s ease-in-out infinite',
+          }}
         />
       )}
       <div
         className={cn('absolute -inset-[30%] blur-[80px]', translucent ? 'opacity-45' : 'opacity-90')}
         style={{
-          background: `radial-gradient(38% 42% at 32% 34%, ${base}, transparent 70%)`,
+          background: `radial-gradient(38% 42% at 30% 30%, ${base}, transparent 70%)`,
           animation: 'music-drift 26s ease-in-out infinite',
         }}
       />
       <div
         className={cn('absolute -inset-[30%] blur-[90px]', translucent ? 'opacity-40' : 'opacity-80')}
         style={{
-          background: `radial-gradient(42% 38% at 68% 66%, ${accent}, transparent 72%)`,
+          background: `radial-gradient(42% 38% at 70% 68%, ${accent}, transparent 72%)`,
           /* Offset and reversed so the two never travel as one shape. */
           animation: 'music-drift 34s ease-in-out infinite reverse',
+        }}
+      />
+      {/* A third light, base into accent, so the field reads as one animated
+          gradient rather than two separate blobs. */}
+      <div
+        className={cn('absolute -inset-[30%] blur-[100px]', translucent ? 'opacity-0' : 'opacity-60')}
+        style={{
+          background: `radial-gradient(46% 40% at 62% 24%, color-mix(in oklab, ${base} 60%, ${accent}), transparent 72%)`,
+          animation: 'music-drift 40s ease-in-out infinite',
         }}
       />
 

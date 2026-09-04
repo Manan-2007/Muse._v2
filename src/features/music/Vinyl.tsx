@@ -180,63 +180,68 @@ export function Vinyl({
       <div
         ref={disc}
         className={cn(
-          'absolute inset-0 rounded-full bg-[#08080a] shadow-[0_30px_80px_-24px_rgba(0,0,0,0.9),inset_0_0_0_2px_rgba(0,0,0,0.6)]',
+          'absolute inset-0 rounded-full shadow-[0_34px_90px_-24px_rgba(0,0,0,0.95)]',
           scrubbable ? 'cursor-grab touch-none' : '',
         )}
+        style={{
+          /* Pressed black vinyl: a light catching the top, falling to true
+             black at the rim — MD Vinyl's glossy disc rather than a flat one. */
+          background:
+            'radial-gradient(circle at 50% 34%, #1b1b22 0%, #0b0b0e 46%, #030304 100%)',
+        }}
         role={scrubbable ? 'slider' : undefined}
         aria-label={scrubbable ? 'Turn the record to scrub' : undefined}
       >
-        {/* The label: the cover, filling the inner two-thirds of the record, so
-            a rim of black vinyl shows around it the way a pressing does. */}
-        <span className="pointer-events-none absolute inset-[9%] overflow-hidden rounded-full ring-1 ring-inset ring-black/50">
+        {/* Grooves: fine concentric rings pressed across the black, the thing
+            that makes it read as a record and not a black coin. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-full opacity-80"
+          style={{
+            background:
+              'repeating-radial-gradient(circle at 50% 50%, rgba(0,0,0,0.6) 0px, rgba(0,0,0,0.6) 0.7px, rgba(255,255,255,0.05) 1.1px, rgba(255,255,255,0.05) 1.5px, transparent 1.5px, transparent 3.2px)',
+          }}
+        />
+
+        {/* A wide, soft gloss falling across the disc from the top-left — the
+            single highlight that makes lacquer read as lacquer. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-full"
+          style={{
+            background:
+              'radial-gradient(58% 46% at 34% 26%, rgba(255,255,255,0.16), rgba(255,255,255,0.04) 42%, transparent 62%)',
+          }}
+        />
+        {/* A tighter specular sweep, like a lamp caught on the turn. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-full bg-[linear-gradient(118deg,transparent_40%,rgba(255,255,255,0.12)_49%,transparent_57%)]"
+        />
+
+        {/* The label: the album art, pressed into the centre the way a 45's is —
+            a proper circular label, not the whole face. */}
+        <span className="pointer-events-none absolute inset-[30%] overflow-hidden rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.7),inset_0_0_0_1px_rgba(0,0,0,0.5)] ring-1 ring-white/15">
           {artwork ? (
-            <img
-              src={artwork}
-              alt=""
-              draggable={false}
-              className="size-full object-cover"
-            />
+            <img src={artwork} alt="" draggable={false} className="size-full object-cover" />
           ) : (
             <span className="block size-full bg-gradient-to-br from-signal/70 to-signal-deep" />
           )}
+          {/* A slick of shine across the paper label. */}
+          <span
+            aria-hidden
+            className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.18)_0%,transparent_34%)]"
+          />
         </span>
 
-        {/* Grooves: fine concentric rings pressed across the whole face. This is
-            the single thing that turns a circle into a record. */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-full opacity-70 mix-blend-overlay"
-          style={{
-            background:
-              'repeating-radial-gradient(circle at 50% 50%, rgba(0,0,0,0.55) 0px, rgba(0,0,0,0.55) 0.6px, transparent 0.6px, transparent 3px)',
-          }}
-        />
-        {/* A brighter set at a wider pitch, catching light across the grooves. */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-full opacity-30"
-          style={{
-            background:
-              'repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,0.14) 0px, rgba(255,255,255,0.14) 0.5px, transparent 0.5px, transparent 6px)',
-          }}
-        />
-
-        {/* A single sheen sweeping across the face, like light on lacquer. */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-full bg-[linear-gradient(118deg,transparent_36%,rgba(255,255,255,0.14)_47%,transparent_57%)]"
-        />
-
-        {/* Lit outer rim and a dark inner bevel — the edge of a thick disc. */}
+        {/* Lit outer rim — the edge of a thick disc. */}
         <span aria-hidden className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-white/12" />
 
-        {/* The spindle, punched through the label. */}
+        {/* The spindle hole, punched through the middle of the label. */}
         <span
           aria-hidden
-          className="pointer-events-none absolute left-1/2 top-1/2 grid size-[7%] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-[#0b0b0d] shadow-[inset_0_1px_2px_rgba(0,0,0,0.9)] ring-1 ring-white/20"
-        >
-          <span className="size-[34%] rounded-full bg-black ring-1 ring-white/25" />
-        </span>
+          className="pointer-events-none absolute left-1/2 top-1/2 size-[3.4%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#050506] shadow-[0_0_0_2px_rgba(255,255,255,0.14),inset_0_1px_1px_rgba(0,0,0,0.9)]"
+        />
       </div>
 
       {/* The tonearm, mounted at the top-right and reaching onto the record. */}
