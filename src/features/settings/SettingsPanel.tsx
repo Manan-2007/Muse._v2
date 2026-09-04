@@ -1,24 +1,20 @@
 import { useState } from 'react'
-import { Check, Loader2, Monitor, Moon, Sun } from 'lucide-react'
+import { Check, Loader2 } from 'lucide-react'
 
 import { useAuth } from '@/features/auth/AuthContext'
 import { updateProfile } from '@/features/auth/api'
 import { AvatarPicker } from '@/features/settings/AvatarPicker'
 import { downscaleImage } from '@/features/settings/downscaleImage'
-import { getStoredTheme, setTheme, type Theme } from '@/lib/theme'
-import { cn } from '@/lib/utils'
 
 /**
  * Settings — the person's own knobs.
  *
- * Appearance, and the two things a profile is made of: a face and a name.
- * Everything here is theirs to change and saves on the spot; nothing touches
- * the room or anyone else.
+ * The two things a profile is made of: a face and a name. Everything here is
+ * theirs to change and saves on the spot; nothing touches the room or anyone
+ * else.
  */
 export function SettingsPanel() {
   const { user, setUser } = useAuth()
-
-  const [theme, setThemeState] = useState<Theme>(getStoredTheme())
 
   const [name, setName] = useState(user?.name ?? '')
   const [savingName, setSavingName] = useState(false)
@@ -26,11 +22,6 @@ export function SettingsPanel() {
 
   const [photoBusy, setPhotoBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const chooseTheme = (next: Theme) => {
-    setThemeState(next)
-    setTheme(next)
-  }
 
   const saveAvatar = async (avatar: string | null) => {
     setPhotoBusy(true)
@@ -73,12 +64,6 @@ export function SettingsPanel() {
       setPhotoBusy(false)
     }
   }
-
-  const themes: { id: Theme; label: string; icon: typeof Sun }[] = [
-    { id: 'light', label: 'Light', icon: Sun },
-    { id: 'dark', label: 'Dark', icon: Moon },
-    { id: 'system', label: 'System', icon: Monitor },
-  ]
 
   return (
     <div className="space-y-8">
@@ -141,36 +126,6 @@ export function SettingsPanel() {
             </button>
           </div>
         </label>
-      </section>
-
-      {/* Appearance. */}
-      <section>
-        <h3 className="pb-3 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-dusk">
-          Appearance
-        </h3>
-        <div className="grid grid-cols-3 gap-2">
-          {themes.map((entry) => {
-            const Icon = entry.icon
-            const active = theme === entry.id
-            return (
-              <button
-                key={entry.id}
-                type="button"
-                onClick={() => chooseTheme(entry.id)}
-                aria-pressed={active}
-                className={cn(
-                  'flex flex-col items-center gap-2 rounded-xl border px-3 py-4 outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal',
-                  active
-                    ? 'border-signal/50 bg-signal/10 text-chalk'
-                    : 'border-white/12 bg-white/[0.03] text-mist hover:border-white/25 hover:text-chalk',
-                )}
-              >
-                <Icon aria-hidden className={cn('size-5', active && 'text-signal-bright')} />
-                <span className="text-[0.82rem] font-medium">{entry.label}</span>
-              </button>
-            )
-          })}
-        </div>
       </section>
 
       {error && (
