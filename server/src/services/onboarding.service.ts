@@ -2,8 +2,7 @@ import * as libraryModel from '../models/library.model.js'
 import * as trackModel from '../models/track.model.js'
 import * as userModel from '../models/user.model.js'
 import { getOrCreatePersonalRoom } from './room.service.js'
-import { searchYouTube } from './sources.service.js'
-import { cleanTrackName } from './trackName.js'
+import { resolveYouTubeAudio, searchCatalog } from './sources.service.js'
 
 /**
  * The welcome mix.
@@ -23,57 +22,69 @@ type StarterTrack = {
   ref: string
   title: string
   artist: string | null
-  album: null
+  album: string | null
   artwork: string | null
-  duration: null
+  duration: number | null
 }
 
-const MAX_TRACKS = 15
+const MAX_TRACKS = 14
 
 /** The queries worth asking, best signal first: the artists they named, then a
     couple of genre nets to widen it. */
 function queriesFor(genres: string[], artists: string[]): string[] {
   return [
     ...artists.slice(0, 6).map((artist) => artist.trim()).filter(Boolean),
-    ...genres.slice(0, 4).map((genre) => `best ${genre.trim()} songs`),
+    ...genres.slice(0, 4).map((genre) => genre.trim()).filter(Boolean),
   ]
 }
 
 /**
- * Search everything at once and fold the answers into a de-duplicated mix.
+ * Build the mix from the music catalogue, then make it playable.
  *
- * Parallel because these are several searches against volunteer Piped servers,
- * and doing them in turn would leave a new account watching a spinner for the
- * better part of a minute. A query that fails takes nothing with it — the mix
- * is however much came back.
+ * The catalogue (iTunes) is searched first, not YouTube: a query for "Charlie
+ * Puth" there returns his actual songs with real titles, not "King of Pop" or
+ * "We Don't…" cut off mid-word, which is what a raw YouTube search hands back.
+ * Each clean song is then resolved once to a YouTube id so it can actually
+ * play, keeping the catalogue's title, artist, album and cover over YouTube's.
  */
 async function gatherTracks(queries: string[]): Promise<StarterTrack[]> {
-  const settled = await Promise.allSettled(queries.map((query) => searchYouTube(query)))
+  const settled = await Promise.allSettled(queries.map((query) => searchCatalog(query)))
 
   const seen = new Set<string>()
-  const tracks: StarterTrack[] = []
+  const picks: { title: string; artist: string; album: string | null; artwork: string | null; duration: number | null }[] = []
 
   for (const result of settled) {
     if (result.status !== 'fulfilled') continue
-    /* Two per query keeps one prolific artist from filling the whole mix. */
-    for (const hit of result.value.slice(0, 2)) {
-      if (seen.has(hit.id)) continue
-      seen.add(hit.id)
-      const named = cleanTrackName(hit.title, hit.channel)
-      tracks.push({
-        source: 'youtube',
-        ref: hit.id,
-        title: named.title,
-        artist: named.artist ?? hit.channel,
-        album: null,
-        artwork: hit.thumbnail,
-        duration: null,
-      })
-      if (tracks.length >= MAX_TRACKS) return tracks
+    /* Three per query keeps one prolific artist from filling the whole mix. */
+    for (const song of result.value.slice(0, 3)) {
+      const key = `${song.artist.toLowerCase()}|${song.title.toLowerCase()}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      picks.push(song)
+      if (picks.length >= MAX_TRACKS) break
     }
+    if (picks.length >= MAX_TRACKS) break
   }
 
-  return tracks
+  /* Resolve to playable audio in parallel — this runs once, on sign-up. Songs
+     that can't be found on YouTube are simply left out. */
+  const resolved = await Promise.all(
+    picks.map(async (song): Promise<StarterTrack | null> => {
+      const match = await resolveYouTubeAudio(`${song.artist} ${song.title}`)
+      if (!match) return null
+      return {
+        source: 'youtube',
+        ref: match.id,
+        title: song.title,
+        artist: song.artist,
+        album: song.album,
+        artwork: song.artwork ?? match.thumbnail,
+        duration: song.duration,
+      }
+    }),
+  )
+
+  return resolved.filter((track): track is StarterTrack => track !== null)
 }
 
 export async function onboard(

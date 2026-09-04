@@ -97,29 +97,37 @@ export function curatedArtists(): Promise<ArtistCard[]> {
 /**
  * Artists matching a typed query, with faces.
  *
- * iTunes names the matches (it has the fullest catalogue and answers reliably);
- * the photos are resolved the same way as the curated grid. Bounded to a
- * handful, because each is a portrait lookup.
+ * Derived from a *song* search rather than iTunes' artist index: the artist
+ * index matches loosely and surfaces compilation credits like "King of Pop",
+ * whereas the artists behind the actual songs for a query are the real,
+ * recognisable ones, in relevance order. Photos are resolved the same way as
+ * the curated grid.
  */
 export async function searchArtists(query: string): Promise<ArtistCard[]> {
   try {
     const url = new URL('https://itunes.apple.com/search')
     url.searchParams.set('term', query)
-    url.searchParams.set('entity', 'musicArtist')
-    url.searchParams.set('limit', '10')
+    url.searchParams.set('entity', 'song')
+    url.searchParams.set('limit', '40')
     const response = await fetch(url, { signal: AbortSignal.timeout(6000) })
     if (!response.ok) return []
     const body = (await response.json()) as { results?: { artistName?: string }[] }
 
-    const seen = new Set<string>()
-    const names: string[] = []
+    /* Rank artists by how often their songs answer the query, keeping the order
+       of first appearance for ties — the most relevant artist comes first. */
+    const counts = new Map<string, { name: string; n: number }>()
     for (const row of body.results ?? []) {
       const name = row.artistName?.trim()
-      if (!name || seen.has(name.toLowerCase())) continue
-      seen.add(name.toLowerCase())
-      names.push(name)
-      if (names.length >= 8) break
+      if (!name) continue
+      const key = name.toLowerCase()
+      const hit = counts.get(key)
+      if (hit) hit.n += 1
+      else counts.set(key, { name, n: 1 })
     }
+    const names = [...counts.values()]
+      .sort((a, b) => b.n - a.n)
+      .slice(0, 8)
+      .map((c) => c.name)
     return withPhotos(names)
   } catch {
     return []
