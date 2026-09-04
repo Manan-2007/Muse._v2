@@ -3,7 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  // Postgres, so one account works across every device and the app can deploy.
+  // Local dev uses a hosted Postgres too (Neon's free tier) — set DATABASE_URL
+  // in server/.env. See DEPLOY.md.
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
