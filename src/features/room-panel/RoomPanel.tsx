@@ -56,7 +56,7 @@ export function RoomPanel({
     <motion.aside
       /* Above the watch stage (135) so it stays usable while watching, below
          the hub's modal drawers (140), which are meant to take over. */
-      className="fixed inset-y-0 right-0 z-[138] flex w-full flex-col border-l border-white/[0.08] bg-void/90 backdrop-blur-xl sm:w-[21rem]"
+      className="fixed inset-y-0 right-0 z-[138] flex w-full flex-col border-l border-white/[0.08] bg-abyss sm:w-[21rem]"
       /* Full width on a phone — a sliver of the screen behind is worse than a
          clean takeover — and its own 21rem column once there is room to sit
          beside the app. `PANEL_WIDTH_REM` keeps that in step with the inset the

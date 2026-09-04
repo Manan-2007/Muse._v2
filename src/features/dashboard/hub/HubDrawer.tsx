@@ -48,7 +48,7 @@ export function HubDrawer({
         type="button"
         aria-label="Close panel"
         onClick={onClose}
-        className="absolute inset-0 cursor-default bg-void/55 backdrop-blur-[2px]"
+        className="absolute inset-0 cursor-default bg-black/60"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -58,7 +58,7 @@ export function HubDrawer({
       <motion.aside
         role="dialog"
         aria-label={title}
-        className="glass-panel relative flex h-full w-full max-w-[27rem] flex-col rounded-l-panel"
+        className="relative flex h-full w-full max-w-[27rem] flex-col rounded-l-panel border-l border-white/[0.08] bg-abyss"
         initial={{ x: '100%' }}
         animate={{ x: 0 }}
         exit={{ x: '100%' }}

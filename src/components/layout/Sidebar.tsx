@@ -86,7 +86,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        'flex h-full w-64 shrink-0 flex-col border-r border-white/[0.07] bg-abyss/90 backdrop-blur-2xl',
+        'flex h-full w-64 shrink-0 flex-col border-r border-white/[0.07] bg-abyss',
         className,
       )}
     >

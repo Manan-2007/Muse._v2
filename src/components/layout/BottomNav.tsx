@@ -27,7 +27,7 @@ export function BottomNav({ items, insetRight = 0 }: { items: NavItem[]; insetRi
       style={{ right: `${insetRight}rem` }}
       aria-label="Primary"
     >
-      <div className="glass-pill pointer-events-auto flex items-center gap-1 rounded-full p-1.5">
+      <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/10 bg-abyss p-1.5 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.85)]">
         {items.map((item) => {
           const Icon = item.icon
           return (

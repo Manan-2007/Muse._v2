@@ -57,11 +57,11 @@ export function MusicDock({
           transition={{ duration: 0.4, ease: EASE }}
         >
           <div
-            className="pointer-events-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-white/12 shadow-[0_18px_50px_-18px_rgba(0,0,0,0.9)] backdrop-blur-2xl"
+            className="pointer-events-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-white/12 shadow-[0_18px_50px_-18px_rgba(0,0,0,0.9)]"
             style={{
               background: palette
-                ? `color-mix(in oklab, ${palette.base} 38%, rgba(8,8,10,0.86))`
-                : 'rgba(8,8,10,0.86)',
+                ? `color-mix(in oklab, ${palette.base} 30%, #101014)`
+                : '#101014',
             }}
           >
             {/* The playhead, along the top edge. */}

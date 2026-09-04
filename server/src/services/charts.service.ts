@@ -1,11 +1,11 @@
 /**
- * The current charts, for the front door's cover wall.
+ * Recognisable album art, for the front door's cover wall.
  *
- * The landing page dresses itself in real album art rather than stock shapes,
- * so it needs a live-ish list of covers. iTunes' top-songs feed is keyless and
- * gives high-res artwork; it is fetched at most once an hour and served from
- * memory in between, because a marketing wall does not need to be to the minute
- * and the feed should not be hit on every page load.
+ * The landing page dresses itself in real, *known* covers — not a regional
+ * top-50 nobody recognises. So rather than the charts feed, it pulls a handful
+ * of each of a curated set of big-name artists from iTunes (keyless, reliable),
+ * then interleaves them so the wall reads as a mix rather than one artist at a
+ * time. Fetched at most once a day and served from memory in between.
  */
 
 export type ChartCover = {
@@ -14,38 +14,71 @@ export type ChartCover = {
   artwork: string
 }
 
-let cache: { at: number; covers: ChartCover[] } | null = null
-const TTL = 60 * 60 * 1000
+/** Names people know at a glance — the wall should be instantly familiar. */
+const ARTISTS = [
+  'The Weeknd',
+  'Charlie Puth',
+  'Ariana Grande',
+  'Michael Jackson',
+  'Don Toliver',
+  'Travis Scott',
+  'The Kid LAROI',
+  'Drake',
+  'SZA',
+  'Billie Eilish',
+  'Dua Lipa',
+  'Kendrick Lamar',
+]
 
-type Entry = {
-  'im:name'?: { label?: string }
-  'im:artist'?: { label?: string }
-  'im:image'?: { label?: string }[]
+let cache: { at: number; covers: ChartCover[] } | null = null
+const TTL = 24 * 60 * 60 * 1000
+
+type ITunesSong = {
+  trackName?: string
+  artistName?: string
+  collectionName?: string
+  artworkUrl100?: string
 }
 
-async function load(): Promise<ChartCover[]> {
+async function coversFor(artist: string): Promise<ChartCover[]> {
   try {
-    const response = await fetch('https://itunes.apple.com/us/rss/topsongs/limit=48/json', {
-      signal: AbortSignal.timeout(7000),
-    })
+    const url = new URL('https://itunes.apple.com/search')
+    url.searchParams.set('term', artist)
+    url.searchParams.set('entity', 'song')
+    url.searchParams.set('limit', '8')
+    const response = await fetch(url, { signal: AbortSignal.timeout(7000) })
     if (!response.ok) return []
-    const body = (await response.json()) as { feed?: { entry?: Entry[] } }
-    return (body.feed?.entry ?? [])
-      .map((entry) => {
-        const images = entry['im:image'] ?? []
-        const artwork = images[images.length - 1]?.label
-        return {
-          title: entry['im:name']?.label ?? '',
-          artist: entry['im:artist']?.label ?? '',
-          /* The feed's largest is 170px; the CDN serves any size from the same
-             path, so ask for something worth showing full-bleed. */
-          artwork: artwork ? artwork.replace(/\/\d+x\d+bb\.(png|jpg)$/, '/600x600bb.$1') : '',
-        }
-      })
-      .filter((cover) => cover.artwork)
+    const body = (await response.json()) as { results?: ITunesSong[] }
+
+    const seen = new Set<string>()
+    const out: ChartCover[] = []
+    for (const song of body.results ?? []) {
+      const artwork = song.artworkUrl100?.replace('100x100bb', '600x600bb')
+      const key = song.collectionName ?? song.trackName ?? ''
+      if (!artwork || seen.has(key)) continue
+      seen.add(key)
+      out.push({ title: song.trackName ?? '', artist: song.artistName ?? artist, artwork })
+      if (out.length >= 5) break
+    }
+    return out
   } catch {
     return []
   }
+}
+
+/** Round-robin the per-artist lists so no two neighbours share an artist. */
+function interleave(lists: ChartCover[][]): ChartCover[] {
+  const out: ChartCover[] = []
+  const max = Math.max(0, ...lists.map((l) => l.length))
+  for (let i = 0; i < max; i += 1) {
+    for (const list of lists) if (list[i]) out.push(list[i]!)
+  }
+  return out
+}
+
+async function load(): Promise<ChartCover[]> {
+  const lists = await Promise.all(ARTISTS.map((artist) => coversFor(artist)))
+  return interleave(lists)
 }
 
 export async function topCovers(): Promise<ChartCover[]> {

@@ -476,7 +476,10 @@ export function DashboardPage() {
 
                 {(view === 'search' || view === 'library') && (
                   <ErrorBoundary
-                    resetKey={`${view}:${librarySection}:${musicRoomId}`}
+                    /* Keyed on the room only, so moving between Search and the
+                       Library sections switches the browser's section in place
+                       rather than tearing it down and refetching each time. */
+                    resetKey={musicRoomId ?? 'none'}
                     fallback={(_error, reset) => (
                       <StageFailed
                         title="The music library hit a problem"
@@ -581,7 +584,7 @@ export function DashboardPage() {
                 type="button"
                 aria-label="Close menu"
                 onClick={() => setDrawerOpen(false)}
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                className="absolute inset-0 bg-black/60"
               />
               <motion.div
                 className="absolute inset-y-0 left-0"
@@ -769,7 +772,7 @@ function HomeContent({
       <button
         type="button"
         onClick={onListen}
-        className="group relative flex w-full items-center gap-5 overflow-hidden rounded-panel border border-white/10 bg-gradient-to-br from-signal/25 via-white/[0.05] to-transparent p-6 text-left outline-none backdrop-blur-xl transition-transform duration-300 hover:scale-[1.01] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+        className="group relative flex w-full items-center gap-5 overflow-hidden rounded-panel border border-white/10 bg-gradient-to-br from-signal/25 via-white/[0.05] to-transparent p-6 text-left outline-none transition-transform duration-300 hover:scale-[1.01] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
       >
         <span className="grid size-16 shrink-0 place-items-center rounded-full bg-chalk text-void shadow-[0_10px_30px_-8px_rgba(0,0,0,0.6)] transition-transform duration-300 group-hover:scale-105">
           <Play aria-hidden className="size-7 translate-x-0.5 fill-current" />
