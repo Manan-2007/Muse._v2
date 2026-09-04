@@ -6,6 +6,7 @@ import { LiquidGlassFilter } from '@/components/layout/LiquidGlassFilter'
 import { SignInPage, SignUpPage } from '@/pages/AuthPages'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { LandingPage } from '@/pages/LandingPage'
+import { OnboardingPage } from '@/pages/OnboardingPage'
 import { RequireAuth } from '@/pages/RequireAuth'
 import { useLiquidPointer } from '@/hooks/useLiquidPointer'
 import { useSmoothScroll } from '@/hooks/useSmoothScroll'
@@ -77,6 +78,14 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/signin" element={<SignInPage />} />
         <Route path="/signup" element={<SignUpPage />} />
+        <Route
+          path="/welcome"
+          element={
+            <RequireAuth allowUnonboarded>
+              <OnboardingPage />
+            </RequireAuth>
+          }
+        />
         <Route
           path="/dashboard"
           element={

@@ -7,6 +7,8 @@ export type User = {
   email: string
   name: string
   createdAt: string
+  /** Null until the welcome flow is done — the onboarding gate reads this. */
+  onboardedAt: string | null
 }
 
 /* `token` is only present cross-origin; same-origin the cookie carries it. */
@@ -36,4 +38,12 @@ export function logout() {
 
 export function fetchMe() {
   return api.get<UserResponse>('/auth/me').then((r) => r.user)
+}
+
+/**
+ * Finish the welcome flow: send the taste picks, get back the now-onboarded
+ * user plus the personal room the starter mix was built into.
+ */
+export function submitOnboarding(input: { genres: string[]; artists: string[] }) {
+  return api.post<{ user: User; roomId: string; count: number }>('/auth/onboarding', input)
 }

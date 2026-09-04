@@ -2,6 +2,7 @@ import type { Request, Response } from 'express'
 import { z } from 'zod'
 
 import * as authService from '../services/auth.service.js'
+import { onboard } from '../services/onboarding.service.js'
 import { signSession } from '../services/token.service.js'
 import { HttpError } from '../utils/HttpError.js'
 import { clearSessionCookie, setSessionCookie } from '../utils/cookies.js'
@@ -65,6 +66,17 @@ export async function login(req: Request, res: Response) {
  */
 export function extensionToken(req: Request, res: Response) {
   res.json({ token: signSession(req.userId!) })
+}
+
+const onboarding = z.object({
+  genres: z.array(z.string().trim().min(1).max(40)).max(12).default([]),
+  artists: z.array(z.string().trim().min(1).max(80)).max(12).default([]),
+})
+
+/** Save the taste picks and build the starter mix. See the onboarding service. */
+export async function welcome(req: Request, res: Response) {
+  const input = parse(onboarding, req.body)
+  res.json(await onboard(req.userId!, input))
 }
 
 export function logout(_req: Request, res: Response) {

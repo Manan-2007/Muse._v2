@@ -15,6 +15,16 @@ model User {
   passwordHash String
   createdAt    DateTime @default(now())
 
+  /// When the welcome flow was completed. Null means the person has signed up
+  /// but not yet told us what they listen to — the gate that routes them into
+  /// onboarding on their next protected page.
+  onboardedAt  DateTime?
+  /// What they picked on the way in, as JSON arrays. Kept for the starter mix
+  /// and as the honest seed for any future "more like this" — nothing here
+  /// pretends to a taste model the app does not have.
+  favGenres    String   @default("[]")
+  favArtists   String   @default("[]")
+
   ownedRooms   Room[]       @relation("RoomOwner")
   memberships  Membership[]
   queued       QueueItem[]

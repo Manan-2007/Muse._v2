@@ -9,6 +9,8 @@ export type AuthState = {
   signIn: (input: { email: string; password: string }) => Promise<void>
   signUp: (input: { name: string; email: string; password: string }) => Promise<void>
   signOut: () => Promise<void>
+  /** Replace the cached user — used when onboarding flips `onboardedAt`. */
+  setUser: (user: User) => void
 }
 
 export const AuthContext = createContext<AuthState | null>(null)

@@ -10,7 +10,14 @@ import { useAuth } from '@/features/auth/AuthContext'
  * during that window would bounce a signed-in user to the sign-in screen on
  * every refresh.
  */
-export function RequireAuth({ children }: { children: ReactNode }) {
+export function RequireAuth({
+  children,
+  allowUnonboarded = false,
+}: {
+  children: ReactNode
+  /** The welcome page itself sets this, or it would redirect to itself. */
+  allowUnonboarded?: boolean
+}) {
   const { user, loading } = useAuth()
   const location = useLocation()
 
@@ -20,6 +27,12 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   if (!user) {
     return <Navigate to="/signin" replace state={{ from: location.pathname }} />
+  }
+
+  /* Signed up but not yet through the welcome flow — finish that first, so an
+     account never lands in an empty app it was meant to arrive furnished. */
+  if (!user.onboardedAt && !allowUnonboarded) {
+    return <Navigate to="/welcome" replace />
   }
 
   return <>{children}</>
