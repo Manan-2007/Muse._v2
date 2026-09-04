@@ -3,14 +3,14 @@ import { useSearchParams } from 'react-router-dom'
 
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { AnimatePresence, motion } from 'framer-motion'
-import { DoorOpen, Headphones, LogOut, MessagesSquare, Plus, Users } from 'lucide-react'
+import { Disc3, Home, ListMusic, LogOut, MessagesSquare, Play, Plus, Search, Users } from 'lucide-react'
 
 import { useAuth } from '@/features/auth/AuthContext'
+import { BottomNav, type NavItem } from '@/components/layout/BottomNav'
+import { Logo } from '@/components/layout/Logo'
 import { ACTIVITIES, type ActivityId } from '@/features/dashboard/hub/activities'
 import { HubDrawer } from '@/features/dashboard/hub/HubDrawer'
-import { HubRail, type RailItem } from '@/features/dashboard/hub/HubRail'
 import { MuseBackdrop } from '@/features/dashboard/hub/MuseBackdrop'
-import { RoomChip } from '@/features/dashboard/hub/RoomChip'
 import { RoomList } from '@/features/dashboard/hub/RoomList'
 import { VoiceButton } from '@/features/dashboard/hub/VoiceButton'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -49,7 +49,7 @@ type Panel = 'rooms' | 'create'
  * scrolling always happens inside something that is visibly a panel.
  */
 export function DashboardPage() {
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const { phase } = useEntrance()
   const { rooms, loading, error, create, join, setOnline } = useRooms()
 
@@ -319,21 +319,31 @@ export function DashboardPage() {
     }
   }, [activeRoomId, activeRoom, loading, setActiveRoomId])
 
+  /** Which content tab the home shell is showing. */
+  const [tab, setTab] = useState<'home' | 'rooms'>('home')
+  /** Which section the solo player opens on, set by the navbar. */
+  const [musicView, setMusicView] = useState<'search' | 'liked' | 'playlists'>('search')
+
   /* Open the solo player: find-or-create the personal room, then walk straight
-     into its Listen stage in a single URL write. */
-  const openSolo = useCallback(async () => {
-    const room = await fetchPersonalRoom()
-    setDetachedRoom(room)
-    setParams(
-      (previous) => {
-        const next = new URLSearchParams(previous)
-        next.set('room', room.id)
-        next.set('activity', 'music')
-        return next
-      },
-      { replace: false },
-    )
-  }, [setParams])
+     into its Listen stage in a single URL write. The navbar passes which
+     section to land on (Search vs Library). */
+  const openSolo = useCallback(
+    async (view: 'search' | 'liked' | 'playlists' = 'search') => {
+      setMusicView(view)
+      const room = await fetchPersonalRoom()
+      setDetachedRoom(room)
+      setParams(
+        (previous) => {
+          const next = new URLSearchParams(previous)
+          next.set('room', room.id)
+          next.set('activity', 'music')
+          return next
+        },
+        { replace: false },
+      )
+    },
+    [setParams],
+  )
 
   /*
    * Who is in the room right now, as a small set of faces — no 3D characters,
@@ -353,89 +363,60 @@ export function DashboardPage() {
      session is live so it can badge the button and offer the way in. */
   const watch = useWatchPulse(activeRoomId)
 
-  const leftItems: RailItem[] = activeRoom
-    ? ACTIVITIES.map((entry) => ({
-        key: entry.id,
-        label: entry.label,
-        hint:
-          entry.id === 'watch' && watch.viewers.length > 0
-            ? `${watch.viewers.length} watching`
-            : entry.hint,
-        icon: entry.icon,
-        active: activity === entry.id,
-        live: entry.id === 'watch' && watch.viewers.length > 0,
-        /* The music and watch pages open out of this control — see
-           `MusicStage` and `WatchStage`. */
-        onClick: (from) => {
-          if (entry.id === 'music') setMusicOrigin(from ?? null)
-          if (entry.id === 'watch') setWatchOrigin(from ?? null)
-          setActivity(entry.id)
+  /* Enter a shared room and drop straight into its listening stage. */
+  const enterRoom = useCallback(
+    (roomId: string) => {
+      setTab('rooms')
+      setParams(
+        (previous) => {
+          const next = new URLSearchParams(previous)
+          next.set('room', roomId)
+          next.set('activity', 'music')
+          return next
         },
-      }))
-    : [
-        {
-          key: 'listen',
-          label: 'Listen',
-          hint: 'Just you and the music',
-          icon: Headphones,
-          onClick: () => void openSolo(),
-        },
-        {
-          key: 'create',
-          label: 'Create Room',
-          hint: 'Start your own space',
-          icon: Plus,
-          onClick: () => setPanel('create'),
-        },
-        {
-          key: 'join',
-          label: 'Join Room',
-          hint: rooms.length > 0 ? `${rooms.length} waiting` : 'Walk into one',
-          icon: DoorOpen,
-          onClick: () => setPanel('rooms'),
-        },
-      ]
+        { replace: false },
+      )
+    },
+    [setParams],
+  )
 
-  const rightItems: RailItem[] = [
-    ...(activeRoom
-      ? [
-          {
-            key: 'talk',
-            label: 'Chat & call',
-            hint:
-              call.othersOnCall > 0
-                ? `${call.othersOnCall} on the call`
-                : chat.unread > 0
-                  ? `${chat.unread} new`
-                  : 'Talk to the room',
-            icon: MessagesSquare,
-            active: sideOpen,
-            live: call.othersOnCall > 0 || chat.unread > 0,
-            onClick: () => setSideOpen((open) => !open),
-          } satisfies RailItem,
-        ]
-      : []),
+  /* The one navbar, Muse._v1's bottom tab bar. Home and Rooms switch the
+     browse content; Search and Library open the solo player on that section. */
+  const navItems: NavItem[] = [
+    {
+      key: 'home',
+      label: 'Home',
+      icon: Home,
+      active: tab === 'home' && !activity,
+      onClick: () => setTab('home'),
+    },
+    {
+      key: 'search',
+      label: 'Search',
+      icon: Search,
+      active: activity === 'music' && musicView === 'search',
+      onClick: () => void openSolo('search'),
+    },
+    {
+      key: 'library',
+      label: 'Library',
+      icon: Disc3,
+      active: activity === 'music' && musicView !== 'search',
+      onClick: () => void openSolo('liked'),
+    },
     {
       key: 'rooms',
-      label: activeRoom ? 'Switch room' : 'Your rooms',
-      hint: activeRoom ? 'Somewhere else' : 'Everywhere you belong',
+      label: 'Rooms',
       icon: Users,
-      onClick: () => setPanel('rooms'),
+      active: tab === 'rooms' && !activity,
+      live: Boolean(activeRoom && (chat.unread > 0 || call.othersOnCall > 0)) || watch.viewers.length > 0,
+      onClick: () => setTab('rooms'),
     },
-    ...(activeRoom
-      ? [
-          {
-            key: 'leave',
-            label: 'Leave',
-            hint: 'Back to the hub',
-            icon: LogOut,
-            danger: true,
-            /* Leaving clears the activity too — see `setActiveRoomId`. */
-            onClick: () => setActiveRoomId(null),
-          } satisfies RailItem,
-        ]
-      : []),
   ]
+
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  const firstName = user?.name.split(' ')[0]
 
   /* While the corridor plays the hub stays mounted but invisible, so the room
      fetch is already in flight by the time it hands off. */
@@ -454,7 +435,7 @@ export function DashboardPage() {
     <ExtensionBridge roomId={activeRoom?.id ?? null} roomName={activeRoom?.name ?? null} />
 
     <motion.main
-      className="fixed inset-0 overflow-hidden"
+      className="fixed inset-0 flex flex-col overflow-hidden"
       initial={{ opacity: 0 }}
       animate={{ opacity: revealed ? 1 : 0 }}
       transition={{ duration: 0.7, ease: EASE }}
@@ -463,92 +444,85 @@ export function DashboardPage() {
 
       {revealed && (
         <>
-          {/*
-            The centre of the hub. No 3D world and nobody standing in it —
-            Muse. is music-first, so this is the app's own identity when you
-            have not walked into a room, and the room's name and who is in it
-            once you have. Hidden while a stage is open, which covers it anyway.
-          */}
-          {!activity && (
-            <div className="pointer-events-none absolute inset-0 z-10 mx-auto flex max-w-[min(92vw,34rem)] flex-col items-center justify-center px-6 text-center">
-              {activeRoom ? (
-                <>
-                  <span className="text-[0.7rem] uppercase tracking-[0.28em] text-dusk">
-                    In the room
-                  </span>
-                  <h1 className="mt-3 text-balance font-display text-[clamp(1.5rem,4vw,3.25rem)] font-semibold tracking-[-0.02em] text-chalk">
-                    {activeRoom.name}
-                  </h1>
+          {/* Top bar: the mark, and who you are. */}
+          <header className="relative z-10 flex shrink-0 items-center justify-between gap-3 px-5 py-4 sm:px-8">
+            <button
+              type="button"
+              onClick={() => setTab('home')}
+              className="flex items-center gap-2.5 rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+            >
+              <Logo />
+              <span className="font-display text-[1.05rem] font-semibold tracking-[-0.02em] text-chalk">
+                Muse<span className="text-signal">.</span>
+              </span>
+            </button>
 
-                  {present.length > 0 && (
-                    <div className="mt-5 flex items-center gap-2.5">
-                      <span className="flex -space-x-2">
-                        {present.slice(0, 5).map((one) => (
-                          <span
-                            key={one.id}
-                            title={one.you ? `${one.name} (you)` : one.name}
-                            className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-signal to-signal-deep text-[0.7rem] font-semibold text-white ring-2 ring-void"
-                          >
-                            {one.name.slice(0, 1).toUpperCase()}
-                          </span>
-                        ))}
-                        {present.length > 5 && (
-                          <span className="grid size-8 place-items-center rounded-full bg-white/10 text-[0.62rem] font-semibold text-chalk ring-2 ring-void">
-                            +{present.length - 5}
-                          </span>
-                        )}
-                      </span>
-                      <span className="text-[0.82rem] text-mist">
-                        {present.length === 1 ? 'just you, so far' : `${present.length} here`}
-                      </span>
-                    </div>
-                  )}
+            <div className="flex items-center gap-2.5">
+              <span
+                aria-hidden
+                title={user?.name}
+                className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-signal to-signal-deep text-[0.75rem] font-semibold text-white"
+              >
+                {user?.name.slice(0, 1).toUpperCase()}
+              </span>
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                className="rounded-full border border-white/12 px-3.5 py-1.5 text-[0.8rem] text-mist outline-none transition-colors hover:border-white/25 hover:text-chalk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+              >
+                Sign out
+              </button>
+            </div>
+          </header>
 
-                  <p className="mt-6 max-w-sm text-[0.9rem] leading-relaxed text-mist">
-                    Choose <span className="text-chalk">Listen</span> to put a record on together.
-                  </p>
-                </>
+          {/* Scrollable content — the home dashboard, or your rooms. */}
+          <div
+            data-lenis-prevent
+            className="relative z-10 min-h-0 flex-1 overflow-y-auto px-5 pb-28 sm:px-8"
+          >
+            <div className="mx-auto w-full max-w-3xl">
+              {tab === 'home' ? (
+                <HomeContent
+                  greeting={greeting}
+                  firstName={firstName}
+                  rooms={rooms}
+                  activeRoom={activeRoom}
+                  onListen={() => void openSolo('search')}
+                  onLibrary={() => void openSolo('liked')}
+                  onPlaylists={() => void openSolo('playlists')}
+                  onOpenRooms={() => setTab('rooms')}
+                  onEnterRoom={enterRoom}
+                />
               ) : (
-                <>
-                  <h1 className="font-display text-[clamp(2.6rem,8vw,5rem)] font-semibold tracking-[-0.03em] text-chalk">
-                    Muse<span className="text-signal">.</span>
-                  </h1>
-                  <p className="mt-4 max-w-sm text-[0.95rem] leading-relaxed text-mist">
-                    {user ? `Welcome back, ${user.name.split(' ')[0]}. ` : ''}Pick a room to start
-                    listening — or make a new one.
-                  </p>
-                </>
+                <RoomsContent
+                  rooms={rooms}
+                  loading={loading}
+                  activeRoom={activeRoom}
+                  activeRoomId={activeRoomId}
+                  onEnter={enterRoom}
+                  onCreate={() => setPanel('create')}
+                  onJoin={async (code) => {
+                    const room = await join(code)
+                    enterRoom(room.id)
+                    return room
+                  }}
+                  onOpenChat={() => setSideOpen(true)}
+                  onLeave={() => setActiveRoomId(null)}
+                />
               )}
             </div>
+          </div>
+
+          {error && (
+            <p
+              role="alert"
+              className="pointer-events-none absolute inset-x-0 top-16 z-20 mx-auto max-w-sm px-6 text-center text-[0.8rem] text-signal-bright"
+            >
+              {error}
+            </p>
           )}
 
-          <HubRail side="left" items={leftItems} />
-          <HubRail side="right" items={rightItems} insetRight={inset} />
-
-          {/* The room chip and the voice toggle, anchored to the bottom-left
-              corner and kept clear of the music dock on the right. */}
-          <div
-            className="pointer-events-none absolute bottom-6 left-0 z-20 flex flex-col items-start gap-2.5 px-6 transition-[right] duration-500 ease-glass"
-            style={{ right: `calc(${inset}rem + min(23rem, 34%))` }}
-          >
-            {error && (
-              <div className="hidden max-w-xs md:block">
-                <p
-                  role="alert"
-                  className="glass-pill-ink rounded-card px-4 py-3 text-[0.78rem] leading-relaxed text-signal-bright"
-                >
-                  {error}
-                </p>
-              </div>
-            )}
-
-            {activeRoom && (
-              <div className="flex min-w-0 max-w-full flex-nowrap items-center gap-2.5">
-                <RoomChip room={activeRoom} />
-                <VoiceButton roomId={activeRoomId} />
-              </div>
-            )}
-          </div>
+          <BottomNav items={navItems} insetRight={inset} />
         </>
       )}
 
@@ -618,6 +592,7 @@ export function DashboardPage() {
             <MusicStage
               origin={musicOrigin}
               selfId={user?.id}
+              initialView={musicView}
               onClose={() => setActivity(null)}
               insetRight={inset}
               panelOpen={sideOpen}
@@ -730,5 +705,226 @@ export function DashboardPage() {
       </AnimatePresence>
     </motion.main>
     </MusicProvider>
+  )
+}
+
+/**
+ * Home — Muse._v1's dashboard, music-first.
+ *
+ * A greeting, one big invitation to start listening on your own, the shortcuts
+ * that used to be quick links, and a glance at the rooms you belong to. Solo is
+ * the headline; rooms are one tap away rather than the whole screen.
+ */
+function HomeContent({
+  greeting,
+  firstName,
+  rooms,
+  activeRoom,
+  onListen,
+  onLibrary,
+  onPlaylists,
+  onOpenRooms,
+  onEnterRoom,
+}: {
+  greeting: string
+  firstName: string | undefined
+  rooms: Room[]
+  activeRoom: Room | undefined
+  onListen: () => void
+  onLibrary: () => void
+  onPlaylists: () => void
+  onOpenRooms: () => void
+  onEnterRoom: (roomId: string) => void
+}) {
+  const quickLinks = [
+    { key: 'library', label: 'Library', hint: 'Liked & uploads', icon: Disc3, onClick: onLibrary },
+    { key: 'playlists', label: 'Playlists', hint: 'Your mixes', icon: ListMusic, onClick: onPlaylists },
+    { key: 'rooms', label: 'Rooms', hint: 'Listen together', icon: Users, onClick: onOpenRooms },
+  ]
+
+  return (
+    <div className="space-y-8 py-2">
+      <div>
+        <p className="text-[0.72rem] uppercase tracking-[0.24em] text-dusk">{greeting}</p>
+        <h1 className="mt-1.5 font-display text-[clamp(1.8rem,5vw,2.6rem)] font-semibold tracking-[-0.02em] text-chalk">
+          {firstName ? `Welcome back, ${firstName}` : 'Welcome back'}
+        </h1>
+      </div>
+
+      {/* The one invitation that matters: put something on, just for you. */}
+      <button
+        type="button"
+        onClick={onListen}
+        className="group relative flex w-full items-center gap-5 overflow-hidden rounded-panel border border-white/10 bg-gradient-to-br from-signal/25 via-white/[0.05] to-transparent p-6 text-left outline-none backdrop-blur-xl transition-transform duration-300 hover:scale-[1.01] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+      >
+        <span className="grid size-16 shrink-0 place-items-center rounded-full bg-chalk text-void shadow-[0_10px_30px_-8px_rgba(0,0,0,0.6)] transition-transform duration-300 group-hover:scale-105">
+          <Play aria-hidden className="size-7 translate-x-0.5 fill-current" />
+        </span>
+        <span className="min-w-0">
+          <span className="block font-display text-[1.3rem] font-semibold tracking-[-0.01em] text-chalk">
+            Put a record on
+          </span>
+          <span className="mt-1 block text-[0.9rem] text-mist">
+            Search, queue and listen — just you.
+          </span>
+        </span>
+      </button>
+
+      {activeRoom && (
+        <button
+          type="button"
+          onClick={() => onEnterRoom(activeRoom.id)}
+          className="flex w-full items-center gap-3 rounded-card border border-white/10 bg-white/[0.04] p-4 text-left outline-none transition-colors hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+        >
+          <span className="size-2 shrink-0 animate-signal-pulse rounded-full bg-signal" />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[0.9rem] font-medium text-chalk">
+              Back to {activeRoom.name}
+            </span>
+            <span className="text-[0.75rem] text-mist">Pick up where the room is</span>
+          </span>
+        </button>
+      )}
+
+      <div className="grid grid-cols-3 gap-3">
+        {quickLinks.map((link) => {
+          const Icon = link.icon
+          return (
+            <button
+              key={link.key}
+              type="button"
+              onClick={link.onClick}
+              className="flex flex-col gap-2 rounded-card border border-white/10 bg-white/[0.03] p-4 text-left outline-none transition-colors hover:bg-white/[0.07] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+            >
+              <Icon aria-hidden className="size-5 text-signal-bright" />
+              <span className="text-[0.9rem] font-medium text-chalk">{link.label}</span>
+              <span className="text-[0.72rem] text-dusk">{link.hint}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {rooms.length > 0 && (
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-display text-[1.05rem] font-semibold text-chalk">Your rooms</h2>
+            <button
+              type="button"
+              onClick={onOpenRooms}
+              className="rounded-full text-[0.8rem] text-mist outline-none transition-colors hover:text-chalk focus-visible:underline"
+            >
+              See all
+            </button>
+          </div>
+          <div className="scrollbar-none flex gap-3 overflow-x-auto pb-2">
+            {rooms.slice(0, 8).map((room) => (
+              <button
+                key={room.id}
+                type="button"
+                onClick={() => onEnterRoom(room.id)}
+                className="flex w-40 shrink-0 flex-col gap-2 rounded-card border border-white/10 bg-white/[0.03] p-3 text-left outline-none transition-colors hover:bg-white/[0.07] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+              >
+                <span className="grid h-20 place-items-center rounded-lg bg-gradient-to-br from-signal/30 to-signal-deep/40">
+                  <Users aria-hidden className="size-6 text-chalk/80" />
+                </span>
+                <span className="truncate text-[0.85rem] font-medium text-chalk">{room.name}</span>
+                <span className="truncate text-[0.72rem] capitalize text-dusk">
+                  {room.type} · {room.members.length} member{room.members.length === 1 ? '' : 's'}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Rooms — the social half, kept to its own tab so Home stays about the music.
+ */
+function RoomsContent({
+  rooms,
+  loading,
+  activeRoom,
+  activeRoomId,
+  onEnter,
+  onCreate,
+  onJoin,
+  onOpenChat,
+  onLeave,
+}: {
+  rooms: Room[]
+  loading: boolean
+  activeRoom: Room | undefined
+  activeRoomId: string | null
+  onEnter: (roomId: string) => void
+  onCreate: () => void
+  onJoin: (code: string) => Promise<Room>
+  onOpenChat: () => void
+  onLeave: () => void
+}) {
+  return (
+    <div className="space-y-6 py-2">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="font-display text-[clamp(1.6rem,4vw,2.1rem)] font-semibold tracking-[-0.02em] text-chalk">
+          Rooms
+        </h1>
+        <button
+          type="button"
+          onClick={onCreate}
+          className="flex items-center gap-2 rounded-full bg-chalk px-4 py-2 text-[0.85rem] font-medium text-void outline-none transition-transform hover:scale-[1.03] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+        >
+          <Plus aria-hidden className="size-4" />
+          New room
+        </button>
+      </div>
+
+      {activeRoom && !activeRoom.personal && (
+        <div className="flex flex-wrap items-center gap-3 rounded-card border border-signal/30 bg-signal/[0.08] p-4">
+          <span className="size-2 shrink-0 animate-signal-pulse rounded-full bg-signal" />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[0.9rem] font-medium text-chalk">
+              You&apos;re in {activeRoom.name}
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={() => onEnter(activeRoom.id)}
+            className="rounded-full bg-chalk px-3.5 py-1.5 text-[0.8rem] font-medium text-void outline-none transition-transform hover:scale-[1.03] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+          >
+            Open
+          </button>
+          <button
+            type="button"
+            onClick={onOpenChat}
+            aria-label="Chat & call"
+            className="grid size-9 place-items-center rounded-full border border-white/12 text-chalk outline-none transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+          >
+            <MessagesSquare aria-hidden className="size-4" />
+          </button>
+          <VoiceButton roomId={activeRoomId} />
+          <button
+            type="button"
+            onClick={onLeave}
+            aria-label="Leave room"
+            className="grid size-9 place-items-center rounded-full border border-white/12 text-mist outline-none transition-colors hover:border-signal/40 hover:text-signal-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+          >
+            <LogOut aria-hidden className="size-4" />
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="h-40 animate-pulse rounded-card bg-white/[0.04]" />
+      ) : (
+        <RoomList
+          rooms={rooms}
+          activeRoomId={activeRoom?.id}
+          onWalkIn={(room) => onEnter(room.id)}
+          onJoin={onJoin}
+        />
+      )}
+    </div>
   )
 }

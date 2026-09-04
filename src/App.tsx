@@ -23,6 +23,9 @@ export default function App() {
    * with the hub's own canvas and particle field.
    */
   const onHub = pathname === '/dashboard'
+  /* The app shell (dashboard) and the welcome flow draw their own top bar, so
+     the floating marketing header would be a second, conflicting one. */
+  const ownsChrome = onHub || pathname === '/welcome'
 
   /*
    * Everything that is not the hub is dark now.
@@ -44,7 +47,7 @@ export default function App() {
   return (
     <div className={dark ? 'relative min-h-svh bg-void' : 'relative min-h-svh'}>
       <LiquidGlassFilter />
-      <Header />
+      {!ownsChrome && <Header />}
 
       {/*
         The last line of defence.

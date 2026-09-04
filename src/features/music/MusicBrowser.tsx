@@ -68,14 +68,17 @@ const fromSearch = (result: TrackSearchResult): LibraryTrack => ({
 export function MusicBrowser({
   library,
   onSectionChange,
+  initialView = 'search',
 }: {
   library: ReturnType<typeof useLibrary>
   /** Lets the shell colour its header for whichever view is showing. */
   onSectionChange?: (view: View) => void
+  /** Which section to open on — the navbar uses this to land on Library etc. */
+  initialView?: View
 }) {
   const { roomId, snapshot, canSearch, onQueued, queue } = useMusic()
 
-  const [view, setView] = useState<View>('search')
+  const [view, setView] = useState<View>(initialView)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<TrackSearchResult[] | null>(null)
   const [busy, setBusy] = useState(false)

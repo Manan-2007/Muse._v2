@@ -48,6 +48,7 @@ export function MusicStage({
   unread = 0,
   origin,
   selfId,
+  initialView = 'search',
 }: {
   onClose: () => void
   /** Excluded from the listener avatars — you already know you are here. */
@@ -58,6 +59,8 @@ export function MusicStage({
   unread?: number
   /** The control this opened from, so the reveal starts there. */
   origin?: DOMRect | null
+  /** Which browser section to land on — 'search' or 'liked' from the navbar. */
+  initialView?: 'search' | 'liked' | 'playlists'
 }) {
   const {
     roomId,
@@ -221,7 +224,7 @@ export function MusicStage({
             </span>
           </header>
 
-          <MusicBrowser library={library} />
+          <MusicBrowser library={library} initialView={initialView} />
 
           {/*
             The bar between the two screens.
