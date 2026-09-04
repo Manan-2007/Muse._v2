@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Heart, ListMusic, MessagesSquare, Mic, MicOff, Quote } from 'lucide-react'
 
+import { CircularVisualizer } from '@/features/music/CircularVisualizer'
 import { LyricsPanel } from '@/features/music/LyricsPanel'
 import { useLyrics } from '@/features/music/useLyrics'
 import { useMusic } from '@/features/music/MusicContext'
 import { MusicControls } from '@/features/music/MusicControls'
 import type { CoverPalette } from '@/features/music/useCoverPalette'
 import { Vinyl } from '@/features/music/Vinyl'
+import { useScratchSound } from '@/features/music/useScratchSound'
 import { cn } from '@/lib/utils'
 
 /**
@@ -60,6 +62,7 @@ export function NowPlaying({
     setRepeat,
     next,
     previous,
+    analyserSource,
   } = useMusic()
 
   const track = snapshot?.track ?? null
@@ -76,6 +79,7 @@ export function NowPlaying({
   durationRef.current = duration
   const scrubBase = useRef(0)
   const lastScrubSeek = useRef(0)
+  const scratch = useScratchSound()
 
   const seekTo = (seconds: number) => send('music:control', { action: 'seek', position: seconds })
 
@@ -106,8 +110,10 @@ export function NowPlaying({
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      {/* Minimal top bar: the way back, a quiet label, and the extras. */}
-      <header className="flex shrink-0 items-center justify-between gap-3 px-5 py-4">
+      {/* Minimal top bar: the way back, a quiet label, and the extras. The
+          label is centred on the page, not wedged between the two button
+          clusters — so it reads as a caption for the record, dead centre. */}
+      <header className="relative flex shrink-0 items-center justify-between gap-3 px-5 py-4">
         <button
           type="button"
           onClick={onCollapse}
@@ -117,7 +123,7 @@ export function NowPlaying({
           <ChevronDown aria-hidden className="size-5" />
         </button>
 
-        <span className="truncate text-[0.66rem] uppercase tracking-[0.28em] text-dusk">
+        <span className="pointer-events-none absolute left-1/2 top-1/2 max-w-[45%] -translate-x-1/2 -translate-y-1/2 truncate text-center text-[0.66rem] uppercase tracking-[0.28em] text-dusk">
           {shared ? `Playing · ${others.length + 1} listening` : 'Playing from your queue'}
         </span>
 
@@ -198,26 +204,39 @@ export function NowPlaying({
             showLyrics ? 'hidden lg:flex lg:w-[44%] lg:shrink-0 lg:px-0' : 'flex-1',
           )}
         >
-          <Vinyl
-            artwork={track.artwork}
-            playing={snapshot.playing}
-            accent={palette?.base ?? 'var(--color-signal)'}
-            className="w-[min(80vw,min(30rem,44vh))]"
-            scrubbable={duration > 0}
-            onScrubStart={() => {
-              scrubBase.current = positionRef.current
-            }}
-            onScrub={(deltaSeconds) => {
-              const now = performance.now()
-              if (now - lastScrubSeek.current < 120) return
-              lastScrubSeek.current = now
-              seekTo(scrubTarget(deltaSeconds))
-            }}
-            onScrubEnd={(deltaSeconds) => {
-              lastScrubSeek.current = 0
-              seekTo(scrubTarget(deltaSeconds))
-            }}
-          />
+          {/* The record, ringed by the beat meter. The meter's canvas is drawn
+              larger than the disc and overflows around it, so the bars stand in
+              the open space just outside the rim rather than on top of it. */}
+          <div className="relative aspect-square w-[min(76vw,min(28rem,42vh))]">
+            <CircularVisualizer
+              source={analyserSource}
+              playing={snapshot.playing}
+              accent={palette?.accent ?? palette?.base ?? 'var(--color-signal)'}
+              className="absolute inset-[-28%]"
+            />
+            <Vinyl
+              artwork={track.artwork}
+              playing={snapshot.playing}
+              accent={palette?.base ?? 'var(--color-signal)'}
+              scrubbable={duration > 0}
+              onScrubStart={() => {
+                scrubBase.current = positionRef.current
+                scratch.start()
+              }}
+              onScrub={(deltaSeconds) => {
+                scratch.move(deltaSeconds)
+                const now = performance.now()
+                if (now - lastScrubSeek.current < 120) return
+                lastScrubSeek.current = now
+                seekTo(scrubTarget(deltaSeconds))
+              }}
+              onScrubEnd={(deltaSeconds) => {
+                scratch.end()
+                lastScrubSeek.current = 0
+                seekTo(scrubTarget(deltaSeconds))
+              }}
+            />
+          </div>
 
           <div className="w-full max-w-xl text-center">
             <h1 className="text-balance font-display text-[clamp(1.5rem,4vw,2.4rem)] font-semibold leading-[1.1] tracking-[-0.02em] text-chalk [text-shadow:0_2px_16px_rgba(0,0,0,0.5)] line-clamp-2">
