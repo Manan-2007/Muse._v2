@@ -264,7 +264,17 @@ muse/
 
 ## Running it locally
 
-Two processes: Vite for the frontend, and the API. One command starts both.
+**The easy way — one command.** From the `muse/` folder:
+
+```bash
+./start.sh        # macOS / Linux
+```
+
+On Windows, run **`start.bat`** (double-clicking works too). These install
+anything missing, prepare the database on first run, start the frontend and API
+together, and open the app in your browser once it's up. Ctrl+C stops it.
+
+**By hand** — two processes, Vite for the frontend and the API, started together:
 
 ```bash
 npm install
